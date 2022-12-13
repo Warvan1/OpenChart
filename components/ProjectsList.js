@@ -1,0 +1,29 @@
+import React, {useState, useEffect} from 'react';
+import { useUser } from '@auth0/nextjs-auth0/client';
+
+export default function ProjectsList(props){
+    const {user, error, isLoading } = useUser();
+    const [projectData, setProjectData] = useState({results: [{title: ""}]})
+
+    //get projects from backend based on user email
+    useEffect(() => {
+        if(!isLoading && !error){
+            fetch(`http://localhost:5000/express/get-projects?email=${user.email}`).then(
+                response => response.json()
+            ).then(
+                data => {
+                    setProjectData(data);
+                }
+            )
+        }
+    }, [user])
+
+    
+    //handle user loading and error
+    if (isLoading) return <div>Loading...</div>;
+    if (error) return <div>{error.message}</div>;
+
+    return (
+        <div> <p>{projectData.results[0].title}</p></div>
+    );
+}
