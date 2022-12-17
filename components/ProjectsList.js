@@ -1,5 +1,7 @@
 import React, {useState, useEffect} from 'react';
 import { useUser } from '@auth0/nextjs-auth0/client';
+import { Container } from 'react-bootstrap';
+import ProjectsListCard from './ProjectsListCard';
 
 export default function ProjectsList(props){
     const {user, error, isLoading } = useUser();
@@ -8,7 +10,7 @@ export default function ProjectsList(props){
     //get projects from backend based on user email
     useEffect(() => {
         if(!isLoading && !error){
-            fetch(`http://localhost:5000/express/get-projects?email=${user.email}`).then(
+            fetch(`/api/get-projects`).then(
                 response => response.json()
             ).then(
                 data => {
@@ -24,6 +26,10 @@ export default function ProjectsList(props){
     if (error) return <div>{error.message}</div>;
 
     return (
-        <div> <p>{projectData.results[0].title}</p></div>
+        <Container>
+            {projectData.results.map((project) => (
+                <ProjectsListCard project={project}/>
+            ))}
+        </Container>
     );
 }

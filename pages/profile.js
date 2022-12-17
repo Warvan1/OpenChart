@@ -4,7 +4,6 @@ import Image from 'next/image'
 import MainNavbar from '../components/MainNavBar';
 
 export default function ProfilePage({user}) {
-    console.log(user);
 
   return (
     <div>

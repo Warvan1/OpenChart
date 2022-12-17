@@ -1,95 +1,84 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, {useState, useEffect, useRef, useContext} from 'react';
+import { useUser } from '@auth0/nextjs-auth0/client';
 import paper from "paper";
-import ServerTest from "./ServerTest";
+import { ProjectDataContext } from './ProjectControler';
 
-export default function ProjectView() {
-  const canvasRef = useRef(null);
-  const [projectJSON, setProjectJSON] = useState({project: null});
 
-  useEffect(() => {
-    // Get a reference to the canvas object
-    const canvas = canvasRef.current;
-    // Create an empty project and a view for the canvas:
-    paper.setup(canvas);
-    // Set the view size to 600 pixels wide and 800 pixels high:
-    paper.view.viewSize = [600, 800];
-    // Create a new path and set its stroke color to black:
-    var path = new paper.Path();
-    path.strokeColor = "black";
+export default function ProjectView(props){
+    const {user, error, isLoading } = useUser();
+    const canvasRef = useRef(null);
+    //gets the projectData and update from the project controller
+    const {projectData, update, setUpdate} = useContext(ProjectDataContext);
 
-    // Create a rectangle shaped path at the top left corner of the view:
-    var rectangle = new paper.Path.Rectangle({
-      point: [0, 0],
-      size: [600, 800],
-      fillColor: "black" // change the rectangle color to black
-    });
-    // Add the rectangle to the path:
-    path.add(rectangle);
+    //update screen whenever update is true
+    useEffect(() => {
+        if(update == true){
+            if(projectData.id != undefined){
+                updateScreen();
+            }
+            setUpdate(false)
+        }
+    }, [update])
 
-    // Create 100 circle shaped paths at random locations within the view
-    for (var i = 0; i < 20; i++) {
-      // generate a random color in RGB format
-      var randomColor =
-        "rgb(" +
-        Math.floor(Math.random() * 256) +
-        "," +
-        Math.floor(Math.random() * 256) +
-        "," +
-        Math.floor(Math.random() * 256) +
-        ")";
-      // generate a random radius between 10 and 40
-      var radius = Math.random() * 30 + 10;
-      var circle = new paper.Path.Circle({
-        // generate random x and y coordinates within the view,
-        // taking into account the radius of the circle
-        center: [
-          radius + Math.random() * (600 - 2 * radius),
-          radius + Math.random() * (800 - 2 * radius),
-        ],
-        radius: radius,
-        fillColor: randomColor // use the generated random color
-      });
-      // Add the circle to the path:
-      path.add(circle);
+    //update screen on page load
+    useEffect(() => {
+        if(projectData.id != undefined){
+            updateScreen();
+        }
+    }, [projectData])
+
+    //redraw the canvas
+    function updateScreen(){
+        //get a reference to the canvas dom object
+        const canvas = canvasRef.current;
+        //create an empty project and a view for the canvas
+        paper.setup(canvas);
+        //set the view size
+        paper.view.viewSize = [800, 1000]
+        //create a path to add objects to
+        var path = new paper.Path();
+
+        //set up background
+        var background = new paper.Path.Rectangle({
+            point: [0,0], 
+            size:[800,1000],
+            fillColor: [0.9,0.9,0.9],
+            strokeColor: [0.5,0.5,0.5],
+            strokeWidth: 10,
+        });
+        path.add(background);
+
+        //handle objects from project controler
+        for(var i = 0; i < projectData.projectJSON.objects.length; i++){
+            var object = projectData.projectJSON.objects[i];
+            var pathObject = null;
+            //convert each object into a paper path object
+            if(object.type == "rectangle"){
+                pathObject = new paper.Path.Rectangle(object.data)
+            }
+
+            //add new pathObject to path
+            path.add(pathObject);
+        }
+
+        //view the project
+        paper.view.draw();
     }
     
+    
+    //handle user loading and error
+    if (isLoading) return <div>Loading...</div>;
+    if (error) return <div>{error.message}</div>;
 
-    // Draw the view now:
-    paper.view.draw();
-
-    // Export the project to json and store within a state
-    setProjectJSON(paper.project.exportJSON());
-  }, []);
-
-  function saveProject(){    
-    try {
-      fetch('http://localhost:5000/express/save-project', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({projectJSON}),
-      });
-      // Do something with the result here
-    } catch (error) {
-      // Handle any errors here
-      console.log(error);
-    }
-  }
-
-  return (
-    <div>
-      <div>
-        <button onClick={saveProject}>Save</button>
-      </div>
-      <ServerTest />
-      <div>
-        <canvas ref={canvasRef} width={600} height={800} style={{
-          display: "block",
-          marginLeft: "auto",
-          marginRight: "auto",
-        }}/>
-      </div>
-    </div>
-  );
+    return (
+        <div>
+            <div>
+                <canvas ref={canvasRef} width={800} height={1000} style={{
+                    display:"block",
+                    marginLeft: "auto",
+                    marginRight: "auto",
+                }} />
+            </div>
+        </div>
+    );
 }
