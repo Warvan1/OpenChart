@@ -321,20 +321,28 @@ export default function ProjectEditor(props){
             //and make them visible again
             else{
                 topLeft.visible = true;
+                paper.project.activeLayer.addChild(topLeft);
                 topLeft.position = pathObjects[focused].object.bounds.topLeft;
                 topRight.visible = true;
+                paper.project.activeLayer.addChild(topRight);
                 topRight.position = pathObjects[focused].object.bounds.topRight;
                 bottomLeft.visible = true;
+                paper.project.activeLayer.addChild(bottomLeft);
                 bottomLeft.position = pathObjects[focused].object.bounds.bottomLeft;
                 bottomRight.visible = true;
+                paper.project.activeLayer.addChild(bottomRight);
                 bottomRight.position = pathObjects[focused].object.bounds.bottomRight;
                 leftCenter.visible = true;
+                paper.project.activeLayer.addChild(leftCenter);
                 leftCenter.position = pathObjects[focused].object.bounds.leftCenter;
                 rightCenter.visible = true;
+                paper.project.activeLayer.addChild(rightCenter);
                 rightCenter.position = pathObjects[focused].object.bounds.rightCenter;
                 topCenter.visible = true;
+                paper.project.activeLayer.addChild(topCenter);
                 topCenter.position = pathObjects[focused].object.bounds.topCenter;
                 bottomCenter.visible = true;
+                paper.project.activeLayer.addChild(bottomCenter);
                 bottomCenter.position = pathObjects[focused].object.bounds.bottomCenter;
             }
 
