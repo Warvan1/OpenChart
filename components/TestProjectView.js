@@ -1,7 +1,6 @@
 import React, { useRef, useEffect, useState } from "react";
 import paper from "paper";
-import ServerTest from "./ServerTest";
-import webhostName from '../webhost-name.json';
+import { Point } from "paper/dist/paper-core";
 
 export default function ProjectView() {
   const canvasRef = useRef(null);
@@ -19,13 +18,13 @@ export default function ProjectView() {
     path.strokeColor = "black";
 
     // Create a rectangle shaped path at the top left corner of the view:
-    var rectangle = new paper.Path.Rectangle({
+    var background = new paper.Path.Rectangle({
       point: [0, 0],
       size: [600, 800],
       fillColor: "black" // change the rectangle color to black
     });
     // Add the rectangle to the path:
-    path.add(rectangle);
+    path.add(background);
 
     // Create 100 circle shaped paths at random locations within the view
     for (var i = 0; i < 20; i++) {
@@ -50,10 +49,39 @@ export default function ProjectView() {
         radius: radius,
         fillColor: randomColor // use the generated random color
       });
+
+      //delete circle when clicked
+      // circle.onMouseDown = function(event) {
+      //   this.remove();
+      // }
       // Add the circle to the path:
       path.add(circle);
     }
     
+    //places a circle where we click
+    paper.view.onMouseDown = function(event) {
+      console.log(event.point);
+      console.log(event.point.x);
+      var circle = new paper.Path.Circle({
+        radius: 10,
+        fillColor: "yellow",
+        center: [event.point.x, event.point.y]
+      });
+
+      path.add(circle); 
+    }
+
+    var circle = new paper.Path.Circle({
+      radius: 30,
+      fillColor: "red",
+      center: [0,0]
+    })
+
+    circle.onMouseDrag = function(event) {
+      console.log(`${event.point.x}    ${event.point.y}`);
+      circle.position = new Point(event.point.x, event.point.y)
+      console.log(circle.position);
+    }
 
     // Draw the view now:
     paper.view.draw();
