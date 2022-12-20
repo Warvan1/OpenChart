@@ -106,7 +106,8 @@ export default function ProjectEditor(props){
             }
         });
 
-        //focus events
+        //the following 200 ish lines of code are just for calculating and handling scale when
+        //resizing an object using the focus circles.
         var startWidth = null;
         var startHeight = null;
 
@@ -114,48 +115,192 @@ export default function ProjectEditor(props){
         var topLeftStart = null;
         
         topLeft.onMouseDown = function(event) {
+            //initialize our scale loop with starting values
             startWidth = pathObjects[focused].object.bounds.size.width;
             startHeight = pathObjects[focused].object.bounds.size.height;
             topLeftStart = pathObjects[focused].object.bounds.topLeft;
         }
 
         topLeft.onMouseDrag = function(event){
+            //calculate the new width as a scale of the old width based on the new x coord 
             var additionalWidth = topLeftStart.x - event.point.x;
             var totalWidth = additionalWidth + startWidth;
             var scaleWidth = totalWidth/startWidth;
-
+            //do the same for the height
             var additionalHeight = topLeftStart.y - event.point.y;
             var totalHeight = additionalHeight + startHeight;
             var scaleHeight = totalHeight/startHeight;
-
+            //use the scaled height and width to scale the object
             pathObjects[focused].object.scale(scaleWidth, scaleHeight);
-
+            //set starting width height and location to the currient width height and location
+            //we do this so that the next drag event will be applied relative to the most recient one
             startWidth = totalWidth;
             startHeight = totalHeight;
             topLeftStart = event.point;
-
+            //move the active point of the pathObject to the currient location.
             pathObjects[focused].object.bounds.topLeft = event.point;
+        }
+
+        //topRight Scale
+        var topRightStart = null;
+        
+        topRight.onMouseDown = function(event) {
+            //initialize our scale loop with starting values
+            startWidth = pathObjects[focused].object.bounds.size.width;
+            startHeight = pathObjects[focused].object.bounds.size.height;
+            topRightStart = pathObjects[focused].object.bounds.topRight;
+        }
+
+        topRight.onMouseDrag = function(event){
+            //calculate the new width as a scale of the old width based on the new x coord 
+            var additionalWidth = -(topRightStart.x - event.point.x);
+            var totalWidth = additionalWidth + startWidth;
+            var scaleWidth = totalWidth/startWidth;
+            //do the same for the height
+            var additionalHeight = topRightStart.y - event.point.y;
+            var totalHeight = additionalHeight + startHeight;
+            var scaleHeight = totalHeight/startHeight;
+            //use the scaled height and width to scale the object
+            pathObjects[focused].object.scale(scaleWidth, scaleHeight);
+            //set starting width height and location to the currient width height and location
+            //we do this so that the next drag event will be applied relative to the most recient one
+            startWidth = totalWidth;
+            startHeight = totalHeight;
+            topRightStart = event.point;
+            //move the active point of the pathObject to the currient location.
+            pathObjects[focused].object.bounds.topRight = event.point;
+        }
+
+        //bottomLeft Scale
+        var bottomLeftStart = null;
+        
+        bottomLeft.onMouseDown = function(event) {
+            //initialize our scale loop with starting values
+            startWidth = pathObjects[focused].object.bounds.size.width;
+            startHeight = pathObjects[focused].object.bounds.size.height;
+            bottomLeftStart = pathObjects[focused].object.bounds.bottomLeft;
+        }
+
+        bottomLeft.onMouseDrag = function(event){
+            //calculate the new width as a scale of the old width based on the new x coord 
+            var additionalWidth = bottomLeftStart.x - event.point.x;
+            var totalWidth = additionalWidth + startWidth;
+            var scaleWidth = totalWidth/startWidth;
+            //do the same for the height
+            var additionalHeight = -(bottomLeftStart.y - event.point.y);
+            var totalHeight = additionalHeight + startHeight;
+            var scaleHeight = totalHeight/startHeight;
+            //use the scaled height and width to scale the object
+            pathObjects[focused].object.scale(scaleWidth, scaleHeight);
+            //set starting width height and location to the currient width height and location
+            //we do this so that the next drag event will be applied relative to the most recient one
+            startWidth = totalWidth;
+            startHeight = totalHeight;
+            bottomLeftStart = event.point;
+            //move the active point of the pathObject to the currient location.
+            pathObjects[focused].object.bounds.bottomLeft = event.point;
+        }
+
+        //bottomRight Scale
+        var bottomRightStart = null;
+        
+        bottomRight.onMouseDown = function(event) {
+            //initialize our scale loop with starting values
+            startWidth = pathObjects[focused].object.bounds.size.width;
+            startHeight = pathObjects[focused].object.bounds.size.height;
+            bottomRightStart = pathObjects[focused].object.bounds.bottomRight;
+        }
+
+        bottomRight.onMouseDrag = function(event){
+            //calculate the new width as a scale of the old width based on the new x coord 
+            var additionalWidth = -(bottomRightStart.x - event.point.x);
+            var totalWidth = additionalWidth + startWidth;
+            var scaleWidth = totalWidth/startWidth;
+            //do the same for the height
+            var additionalHeight = -(bottomRightStart.y - event.point.y);
+            var totalHeight = additionalHeight + startHeight;
+            var scaleHeight = totalHeight/startHeight;
+            //use the scaled height and width to scale the object
+            pathObjects[focused].object.scale(scaleWidth, scaleHeight);
+            //set starting width height and location to the currient width height and location
+            //we do this so that the next drag event will be applied relative to the most recient one
+            startWidth = totalWidth;
+            startHeight = totalHeight;
+            bottomRightStart = event.point;
+            //move the active point of the pathObject to the currient location.
+            pathObjects[focused].object.bounds.bottomRight = event.point;
         }
 
         //leftCenter Scale
         var leftCenterStart = null;
-        //var startWidth = null;
 
         leftCenter.onMouseDown = function(event) {
             startWidth = pathObjects[focused].object.bounds.size.width;
             leftCenterStart = pathObjects[focused].object.bounds.leftCenter;
         }
+
         leftCenter.onMouseDrag = function(event){
             var additionalWidth = leftCenterStart.x - event.point.x;
             var totalWidth = additionalWidth + startWidth;
             var scaleWidth = totalWidth/startWidth;
-
             pathObjects[focused].object.scale(scaleWidth, 1);
-
             startWidth = totalWidth;
             leftCenterStart = event.point;
-            
             pathObjects[focused].object.bounds.leftCenter.x = event.point.x;
+        }
+
+        //rightCenter Scale
+        var rightCenterStart = null;
+
+        rightCenter.onMouseDown = function(event) {
+            startWidth = pathObjects[focused].object.bounds.size.width;
+            rightCenterStart = pathObjects[focused].object.bounds.rightCenter;
+        }
+
+        rightCenter.onMouseDrag = function(event){
+            var additionalWidth = -(rightCenterStart.x - event.point.x);
+            var totalWidth = additionalWidth + startWidth;
+            var scaleWidth = totalWidth/startWidth;
+            pathObjects[focused].object.scale(scaleWidth, 1);
+            startWidth = totalWidth;
+            rightCenterStart = event.point;
+            pathObjects[focused].object.bounds.rightCenter.x = event.point.x;
+        }
+
+        //topCenter Scale
+        var topCenterStart = null;
+
+        topCenter.onMouseDown = function(event) {
+            startHeight = pathObjects[focused].object.bounds.size.height;
+            topCenterStart = pathObjects[focused].object.bounds.topCenter;
+        }
+
+        topCenter.onMouseDrag = function(event){
+            var additionalHeight = topCenterStart.y - event.point.y;
+            var totalHeight = additionalHeight + startHeight;
+            var scaleHeight = totalHeight/startHeight;
+            pathObjects[focused].object.scale(1, scaleHeight);
+            startHeight = totalHeight;
+            topCenterStart = event.point;
+            pathObjects[focused].object.bounds.topCenter.y = event.point.y;
+        }
+
+        //bottomCenter Scale
+        var bottomCenterStart = null;
+
+        bottomCenter.onMouseDown = function(event) {
+            startHeight = pathObjects[focused].object.bounds.size.height;
+            bottomCenterStart = pathObjects[focused].object.bounds.bottomCenter;
+        }
+
+        bottomCenter.onMouseDrag = function(event){
+            var additionalHeight = -(bottomCenterStart.y - event.point.y);
+            var totalHeight = additionalHeight + startHeight;
+            var scaleHeight = totalHeight/startHeight;
+            pathObjects[focused].object.scale(1, scaleHeight);
+            startHeight = totalHeight;
+            bottomCenterStart = event.point;
+            pathObjects[focused].object.bounds.bottomCenter.y = event.point.y;
         }
 
         //runs every animation frame
