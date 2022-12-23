@@ -3,11 +3,11 @@ import { withApiAuthRequired, getSession } from '@auth0/nextjs-auth0';
 import mysqlConnection from '../../mysqlConnection.json';
 import defaultProject from '../../default-project.json';
 
-//create a connection to the MySQL database
-const connection = mysql.createConnection(mysqlConnection);
-
 export default withApiAuthRequired(async function myApiRoute(request, response) {
   const { user } = await getSession(request, response);
+
+  //create a connection to the MySQL database
+  const connection = mysql.createConnection(mysqlConnection);
   
   const title = request.body.title;
 
@@ -17,4 +17,5 @@ export default withApiAuthRequired(async function myApiRoute(request, response) 
   })
   response.send({ success: true })
 
+  connection.end();
 });

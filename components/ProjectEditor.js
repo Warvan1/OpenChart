@@ -1,20 +1,21 @@
-import React, {useState, useEffect, useRef } from 'react';
+import React, {useState, useEffect, useRef, useContext } from 'react';
 import { useUser } from '@auth0/nextjs-auth0/client';
 import { Button, Container, Row } from 'react-bootstrap';
 import paper from "paper";
 import { Key, Point } from 'paper/dist/paper-core';
+import { ProjectDataContext } from '../pages/project-view/[id]';
 
 export default function ProjectEditor(props){
     const {user, error, isLoading } = useUser();
     const canvasRef = useRef(null);
-    //used to store the project data for use in database
-    const [projectData, setProjectData] = useState({});
-    //set to true when we want to add new projectData to the screen and reload paper project
-    const [update, setUpdate] = useState(false);
+    //retrieve the project Data hooks and the reload hooks from the index.js page
+    const {projectData, setProjectData, reload, setReload} = useContext(ProjectDataContext);
     //used to store the currient pathObjects from paper project
     const [pathObjectsReact, setPathObjectsReact] = useState({});
     //used to store the render order of the path objects so that when we save to database that isnt lost
     const [renderOrderReact, setRenderOrderReact] = useState([]);
+    //used to make sure we only setup the screen once
+    const [updated, setUpdated] = useState(false);
 
     //used to create a paper project to draw on the canvas
     function updateScreen(){
@@ -24,13 +25,15 @@ export default function ProjectEditor(props){
         paper.setup(canvas);
         //set the view size
         paper.view.viewSize = [800, 1000];
-        //create a path to add objects to
-        var path = new paper.Path();
 
         //keep track of if an item is focused
         var focused = null;
         //keep track of the render order for use when saving to database.
         var renderOrder = [];
+
+        //keep track of text input state
+        var textInputMode = false;
+        var catchTextInputChange = null;
 
         //set up background
         var background = new paper.Path.Rectangle({
@@ -61,15 +64,28 @@ export default function ProjectEditor(props){
         for(var i = 0; i < projectData.projectJSON.objects.length; i++){
             var object = projectData.projectJSON.objects[i];
             //convert each object into a paper path object
-            var pathObject = null;
             if(object.type == "rectangle"){
                 //create a path object
-                pathObject = new paper.Path.Rectangle(object.data);
+                var pathObject = new paper.Path.Rectangle(object.data);
                 pathObjects.push({
                     object: pathObject, 
                     type: "rectangle",
                     index: i,
                 });
+            }
+            if(object.type == "text-textBox"){
+                //create a path object
+                var pathObject = new paper.Path.Rectangle(object.data);
+                var textObject = new paper.PointText(object.textData);
+                //set there positions equal
+                textObject.position = pathObject.position;
+                pathObjects.push({
+                    object: pathObject,
+                    textObject: textObject,
+                    type: "text-textBox",
+                    textInputOffset: object.textInputOffset,
+                    index: i
+                })
             }
 
             //add index to renderOrder
@@ -81,12 +97,31 @@ export default function ProjectEditor(props){
         
         //handle events for pathObjects
         pathObjects.forEach((data) => {
+            //used to keep track of the offset from where you clicked on an object to the objects center position
             var clickOffset = null;
+
+            //handle object onload for first time
+            //when adding an object if data.textInputOffset != null
+            if(data.textInputOffset != null){
+                console.log(data.textInputOffset);
+                
+                //remove the | from the caught textInput
+                var content = data.textObject.content;
+                var insertLocation = content.length - data.textInputOffset - 1;
+                content = content.slice(0, insertLocation) + content.slice(insertLocation + 1, content.length);
+                data.textObject.content = content;
+
+                data.textInputOffset = null;
+            }
 
             data.object.onMouseDrag = function(event){
                 // when moving mouse on an object, move the object position to the mouse position
                 // use the clickOffset calculated in onMouseDown to adjust the position from the relative click position 
                 data.object.position = new Point(event.point.x - clickOffset.x, event.point.y - clickOffset.y);
+                //do the same for the text inside text type objects
+                if(data.type.startsWith("text-")){
+                    data.textObject.position = data.object.position;
+                }
                 //update the pathObjects within the react state since we have changed an objects location
                 setPathObjectsReact(pathObjects);
             }
@@ -98,15 +133,54 @@ export default function ProjectEditor(props){
                 //handle object focus and ordering
                 //set this object as the focused object
                 focused = data.index;
+                //set textInput mode to false since we clicked on a non text object
+                textInputMode = false;
                 //move the selected object to the forground (only visual)
                 this.project.activeLayer.addChild(data.object);
+                //make sure the text inside text objects is on top of the object background
+                if(data.type.startsWith("text-")){
+                    this.project.activeLayer.addChild(data.textObject);
+                }
                 //handle keeping track of the render order for the backend
                 renderOrder.push(renderOrder.splice(renderOrder.indexOf(data.index), 1)[0]);
                 setRenderOrderReact(renderOrder);
             }
+
+            //handle text object events
+            if(data.type.startsWith("text-")){
+                data.textObject.onMouseDown = function(event){
+                    //set the object as the focused object
+                    focused = data.index;
+                    //only run if we are entering textInput mode not if we are switching between text inputs
+                    if(textInputMode == false){
+                        //initialize the textInput field change catcher
+                        catchTextInputChange = focused;
+                        //initialize textInputOffset
+                        data.textInputOffset = 0;
+                    }
+                    //set the textInputMode to true since we clicked on a text Input object
+                    textInputMode = true;
+                    
+                    //insert a | at the end of the content
+                    data.textObject.content += "|";
+                    //handle object ordering frontend and backend and text
+                    this.project.activeLayer.addChild(data.object);
+                    this.project.activeLayer.addChild(data.textObject);
+                    renderOrder.push(renderOrder.splice(renderOrder.indexOf(data.index), 1)[0]);
+                    setRenderOrderReact(renderOrder);
+                }
+            }
         });
 
-        //the following 200 ish lines of code are just for calculating and handling scale when
+        //the following 200 ish lines of code are just for calculating and handling scale when.
+
+        //unfocus when you click on the background
+        background.onMouseDown = function(event){
+            focused = null;
+            //make sure that textInput is set to false when we click on the background
+            textInputMode = false;
+        }
+
         //resizing an object using the focus circles.
         var startWidth = null;
         var startHeight = null;
@@ -139,6 +213,10 @@ export default function ProjectEditor(props){
             topLeftStart = event.point;
             //move the active point of the pathObject to the currient location.
             pathObjects[focused].object.bounds.topLeft = event.point;
+            //handle position matching of text type objects
+            if(pathObjects[focused].type.startsWith("text-")){
+                pathObjects[focused].textObject.position = pathObjects[focused].object.position;
+            }
         }
 
         //topRight Scale
@@ -169,6 +247,10 @@ export default function ProjectEditor(props){
             topRightStart = event.point;
             //move the active point of the pathObject to the currient location.
             pathObjects[focused].object.bounds.topRight = event.point;
+            //handle position matching of text type objects
+            if(pathObjects[focused].type.startsWith("text-")){
+                pathObjects[focused].textObject.position = pathObjects[focused].object.position;
+            }
         }
 
         //bottomLeft Scale
@@ -199,6 +281,10 @@ export default function ProjectEditor(props){
             bottomLeftStart = event.point;
             //move the active point of the pathObject to the currient location.
             pathObjects[focused].object.bounds.bottomLeft = event.point;
+            //handle position matching of text type objects
+            if(pathObjects[focused].type.startsWith("text-")){
+                pathObjects[focused].textObject.position = pathObjects[focused].object.position;
+            }
         }
 
         //bottomRight Scale
@@ -229,6 +315,10 @@ export default function ProjectEditor(props){
             bottomRightStart = event.point;
             //move the active point of the pathObject to the currient location.
             pathObjects[focused].object.bounds.bottomRight = event.point;
+            //handle position matching of text type objects
+            if(pathObjects[focused].type.startsWith("text-")){
+                pathObjects[focused].textObject.position = pathObjects[focused].object.position;
+            }
         }
 
         //leftCenter Scale
@@ -247,6 +337,10 @@ export default function ProjectEditor(props){
             startWidth = totalWidth;
             leftCenterStart = event.point;
             pathObjects[focused].object.bounds.leftCenter.x = event.point.x;
+            //handle position matching of text type objects
+            if(pathObjects[focused].type.startsWith("text-")){
+                pathObjects[focused].textObject.position = pathObjects[focused].object.position;
+            }
         }
 
         //rightCenter Scale
@@ -265,6 +359,10 @@ export default function ProjectEditor(props){
             startWidth = totalWidth;
             rightCenterStart = event.point;
             pathObjects[focused].object.bounds.rightCenter.x = event.point.x;
+            //handle position matching of text type objects
+            if(pathObjects[focused].type.startsWith("text-")){
+                pathObjects[focused].textObject.position = pathObjects[focused].object.position;
+            }
         }
 
         //topCenter Scale
@@ -283,6 +381,10 @@ export default function ProjectEditor(props){
             startHeight = totalHeight;
             topCenterStart = event.point;
             pathObjects[focused].object.bounds.topCenter.y = event.point.y;
+            //handle position matching of text type objects
+            if(pathObjects[focused].type.startsWith("text-")){
+                pathObjects[focused].textObject.position = pathObjects[focused].object.position;
+            }
         }
 
         //bottomCenter Scale
@@ -301,8 +403,84 @@ export default function ProjectEditor(props){
             startHeight = totalHeight;
             bottomCenterStart = event.point;
             pathObjects[focused].object.bounds.bottomCenter.y = event.point.y;
+            //handle position matching of text type objects
+            if(pathObjects[focused].type.startsWith("text-")){
+                pathObjects[focused].textObject.position = pathObjects[focused].object.position;
+            }
         }
 
+        //handle keyboard events
+        const tool = new paper.Tool();
+
+        tool.onKeyUp = function(event){
+            console.log(event.key);
+            if(textInputMode){
+                var textInputOffset = pathObjects[focused].textInputOffset;
+                var content = pathObjects[focused].textObject.content;
+                var insertLocation = content.length - textInputOffset - 1;
+                //edit text content based on key
+                if(event.key == "space"){
+                    content = content.slice(0, insertLocation) + " " + content.slice(insertLocation, content.length);
+                }
+                else if(event.key == "backspace"){
+                    if(content.length > 0 && insertLocation >= 1){
+                        content = content.slice(0, insertLocation - 1) + content.slice(insertLocation, content.length);
+                    }
+                }
+                else if(event.key == "enter"){
+                    content = content.slice(0, insertLocation) + "\n" + content.slice(insertLocation, content.length);
+                }
+                else if(event.key == "left"){
+                    if(insertLocation >= 1){
+                        textInputOffset++;
+                        var tempContent = content.slice(0, insertLocation - 1) + "|" + content[insertLocation - 1];
+                        if(textInputOffset >= 2){
+                            tempContent += content.slice(-textInputOffset + 1, content.length)
+                        }
+                        content = tempContent;
+                    }
+                }
+                else if(event.key == "right"){
+                    if(textInputOffset >= 1){
+                        var tempContent = content.slice(0, insertLocation) + content[insertLocation + 1] + "|";
+                        if(textInputOffset >= 2){
+                            tempContent += content.slice(-textInputOffset + 1, content.length);
+                        }
+                        content = tempContent;
+                        textInputOffset--;
+                    }
+                }
+                else if(event.key == "shift" || event.key == "control"){
+                    //do nothing here
+                }
+                else{
+                    var key = event.key;
+                    if(Key.modifiers.shift){
+                        key = key.toUpperCase();
+                    }
+                    content = content.slice(0, insertLocation) + key + content.slice(insertLocation, content.length);
+                }
+                //update content
+                pathObjects[focused].textObject.content = content;
+                //update textInputOffset
+                pathObjects[focused].textInputOffset = textInputOffset;
+            }
+            else{
+                //handle deleting objects when backspace key pressed
+                if(event.key == "backspace"){
+                    if(pathObjects[focused] != undefined){
+                        pathObjects[focused].object.remove();
+                        if(pathObjects[focused].type.startsWith("text-")){
+                            pathObjects[focused].textObject.remove();
+                        }
+                        pathObjects[focused].type = "deleted";
+                        focused = null;
+                    }
+                }
+            }
+            
+        }
+        
         //runs every animation frame
         paper.view.onFrame = function(event){
             //handle focus highlighting
@@ -346,40 +524,43 @@ export default function ProjectEditor(props){
                 bottomCenter.position = pathObjects[focused].object.bounds.bottomCenter;
             }
 
-
-            //handle keyboard events
-            if(Key.isDown('backspace')){ //delete focused object when delete key pressed
-                if(pathObjects[focused] != undefined){
-                    pathObjects[focused].object.remove();
-                    pathObjects[focused].type = "deleted";
-                    focused = null;
+            //handle | removal after we click off a text input
+            if(focused != catchTextInputChange && catchTextInputChange != null){
+                //remove the | from the caught textInput uppon exiting the textInput
+                var content = pathObjects[catchTextInputChange].textObject.content;
+                var insertLocation = content.length - pathObjects[catchTextInputChange].textInputOffset - 1;
+                content = content.slice(0, insertLocation) + content.slice(insertLocation + 1, content.length);
+                pathObjects[catchTextInputChange].textObject.content = content;
+                if(textInputMode == true){
+                    //if inside textInputMode update the Input change catcher to the new focused object and reset the textInput offset
+                    pathObjects[catchTextInputChange].textInputOffset = 0;
+                    catchTextInputChange = focused;
+                }
+                else{
+                    //set the text input change catcher to null if we leave textinput mode
+                    catchTextInputChange = null;
                 }
             }
         }
 
+        //activate the most recient tool inorder to handle tool inputs
+        paper.tools[paper.tools.length -1].activate();
         //view the project
         paper.view.draw();
     }
 
-    //update screen whenever update is true ( when there is a change to projectData )
+    //update screen on page load after projectData loads
+    //using these 2 useEffect hooks we always run updateScreen once per component load.
     useEffect(() => {
-        if(update == true){
-            if(projectData.id != undefined){
-                updateScreen();
-            }
-            setUpdate(false);
+        if(projectData.id != undefined && updated != undefined){
+            setUpdated(true);
         }
-    }, [update])
-
-    //update screen on page load after props.projectData loads
+    }, [projectData])
     useEffect(() => {
-        //set projectData = to the backend data from mysql database retrieved in index.js page
-        setProjectData(props.projectData);
-        if(projectData.id != undefined){
-            //load the paper project
+        if(updated == true){
             updateScreen();
         }
-    }, [props.projectData])
+    }, [updated])
 
     function compileToProjectData(){
         //compile pathObjectsReact into projectJSON type object
@@ -401,6 +582,25 @@ export default function ProjectEditor(props){
                     fillColor: data.object.style.fillColor.components
                 }
             }
+            if(data.type == "text-textBox"){
+                var width = data.object.bounds.size.width;
+                var height = data.object.bounds.size.height;
+                var x = data.object.bounds.topLeft.x;
+                var y = data.object.bounds.topLeft.y;
+                dataObject.data = {
+                    size: [width, height],
+                    point: [x , y],
+                    strokeColor: data.object.style.strokeColor.components,
+                    fillColor: data.object.style.fillColor.components
+                };
+                dataObject.textData = {
+                    point: [x , y],
+                    content: data.textObject.content,
+                    fillColor: data.textObject.style.fillColor.components,
+                    fontSize: data.textObject.fontSize
+                };
+                dataObject.textInputOffset = data.textInputOffset;
+            }
             //dont save object if it has been deleted
             if(data.type != "deleted"){ 
                 //add the dataObject to the projectJSON
@@ -412,8 +612,9 @@ export default function ProjectEditor(props){
 
     //save the project to the mysql database
     function saveProject(){
-        //compile the projectJSON object
+        //compile the projectJSON object if not provided
         var tempProjectJSON = compileToProjectData();
+        
         //send the projectJson object to the server
         fetch(`/api/save-project?id=${props.id}`, {
             method: 'POST',
@@ -445,13 +646,48 @@ export default function ProjectEditor(props){
         tempProjectData.projectJSON = tempProjectJSON;
         //update the projectData react object
         setProjectData(tempProjectData);
-        //reload the frontend paper object
-        setUpdate(true);
+        //save and reload the page to update the frontend
+        //tell the index.js page to reload the component with the new data
+        setReload(!reload);
+    }
+
+    //textBox adding function
+    function addTextBox(){
+        //retrieve the currient backend projectData
+        var tempProjectData = projectData;
+        //compile the currient frontend projectData into a backend projectJSON object
+        var tempProjectJSON = compileToProjectData();
+
+        //add a new textbox object to projectJSON object
+        tempProjectJSON.objects.push({
+            data: {
+                point: [100, 100],
+                size: [100, 50],
+                strokeColor: 'black',
+                fillColor: 'white'
+            },
+            textData: {
+                point: [100, 100],
+                content: 'Hello, World!',
+                fillColor: 'black',
+                fontSize: 12
+            },
+            type: "text-textBox",
+            textInputOffset: null
+        });
+
+        //set the projectJSON in the backend projectJSON to the new projectJSON with the new object
+        tempProjectData.projectJSON = tempProjectJSON;
+        //update the projectData react object
+        setProjectData(tempProjectData);
+        //tell the index.js page to reload the component with the new data
+        setReload(!reload);
     }
 
     function log(){
         console.log(projectData)
         console.log(pathObjectsReact)
+        console.log(paper);
     }
 
     if (isLoading) return <div>Loading...</div>;
@@ -465,6 +701,7 @@ export default function ProjectEditor(props){
                         <h3>{projectData.title}</h3>
                         <Button variant="dark" onClick={saveProject}>Save</Button>
                         <Button variant="primary" onClick={addObject}>temp add</Button>
+                        <Button variant="primary" onClick={addTextBox}>add text box</Button>
                         <Button variant="info" onClick={log}>log</Button>
                     </div>
                 </Row>

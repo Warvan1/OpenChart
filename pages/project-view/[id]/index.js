@@ -2,9 +2,11 @@ import { withPageAuthRequired } from '@auth0/nextjs-auth0';
 import Head from 'next/head';
 import Image from 'next/image';
 import { useRouter } from 'next/router';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, createContext } from 'react';
 import MainNavbar from '../../../components/MainNavBar';
 import ProjectEditor from '../../../components/ProjectEditor';
+
+export const ProjectDataContext = createContext(null);
 
 export default function ProjectViewPage({user}) {
     //get the id from the url
@@ -12,7 +14,11 @@ export default function ProjectViewPage({user}) {
     const {id} = router.query;
 
     //used to store the project data
-    const [projectData, setProjectData] = useState({})
+    const [projectData, setProjectData] = useState({});
+    //used to request reloads
+    const [reload, setReload] = useState(false);
+    //used to make the projectEditor react component reload
+    const [seed, setSeed] = useState(1);
 
     //used to authorize the user to access the project
     const [authorized, setAuthorized] = useState(true); 
@@ -30,7 +36,12 @@ export default function ProjectViewPage({user}) {
                 setAuthorized(false);
             }
         })
-    }, [user])
+    }, [user]);
+
+    //when the reload command gets recieved from the projectEditor we reload the seed which causes the component to reload
+    useEffect(() => {
+        setSeed(Math.random());
+    }, [reload])
 
     return (
         <div>
@@ -39,8 +50,11 @@ export default function ProjectViewPage({user}) {
                     <meta name='keywords' content='chart, online chart, flow chart, online flow chart' />
                 </Head>
                 <MainNavbar />
-                {authorized && <ProjectEditor id={id} projectData={projectData}/>}
-                {!authorized && <h1>Access Denied/ Does Not Exist</h1>}
+                <ProjectDataContext.Provider value = {{projectData, setProjectData, reload, setReload}}>
+                    {authorized && <ProjectEditor id={id} key={seed}/>}
+                    {!authorized && <h1>Access Denied/ Does Not Exist</h1>}
+                </ProjectDataContext.Provider>
+                
         </div>
     )
 }
