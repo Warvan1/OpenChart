@@ -151,6 +151,12 @@ export default function ProjectEditor(props){
                 data.textObject.onMouseDown = function(event){
                     //set the object as the focused object
                     focused = data.index;
+
+                    //insert a | at the end of the content
+                    if(catchTextInputChange != focused){
+                        data.textObject.content += "|";
+                    }
+                    
                     //only run if we are entering textInput mode not if we are switching between text inputs
                     if(textInputMode == false){
                         //initialize the textInput field change catcher
@@ -161,8 +167,6 @@ export default function ProjectEditor(props){
                     //set the textInputMode to true since we clicked on a text Input object
                     textInputMode = true;
                     
-                    //insert a | at the end of the content
-                    data.textObject.content += "|";
                     //handle object ordering frontend and backend and text
                     this.project.activeLayer.addChild(data.object);
                     this.project.activeLayer.addChild(data.textObject);
