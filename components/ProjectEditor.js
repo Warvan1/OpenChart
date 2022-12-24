@@ -156,7 +156,7 @@ export default function ProjectEditor(props){
                     if(catchTextInputChange != focused){
                         data.textObject.content += "|";
                     }
-                    
+
                     //only run if we are entering textInput mode not if we are switching between text inputs
                     if(textInputMode == false){
                         //initialize the textInput field change catcher
@@ -416,7 +416,7 @@ export default function ProjectEditor(props){
         //handle keyboard events
         const tool = new paper.Tool();
 
-        tool.onKeyUp = function(event){
+        tool.onKeyDown = function(event){
             console.log(event.key);
             if(textInputMode){
                 var textInputOffset = pathObjects[focused].textInputOffset;
