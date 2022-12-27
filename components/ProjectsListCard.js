@@ -53,11 +53,11 @@ export default function ProjectsListCard(props){
                     </Form>
                 </Modal.Body>
                 <Modal.Footer>
-                    <Button variant="danger" onClick={deleteProject}>
-                        Delete Forever
-                    </Button>
                     <Button variant="secondary" onClick={closeConfirmDelete}>
                         Exit
+                    </Button>
+                    <Button variant="danger" onClick={deleteProject}>
+                        Delete Forever
                     </Button>
                 </Modal.Footer>
             </Modal>

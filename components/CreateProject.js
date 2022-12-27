@@ -64,11 +64,11 @@ export default function CreateProject(props){
                     </Form>
                 </Modal.Body>
                 <Modal.Footer>
-                    <Button variant="secondary" onClick={handleCreate}>
-                        Create
-                    </Button>
                     <Button variant="secondary" onClick={handleClose}>
                         Exit
+                    </Button>
+                    <Button variant="primary" onClick={handleCreate}>
+                        Create
                     </Button>
                 </Modal.Footer>
             </Modal>

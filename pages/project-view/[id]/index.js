@@ -20,6 +20,9 @@ export default function ProjectViewPage({user}) {
     //used to make the projectEditor react component reload
     const [seed, setSeed] = useState(1);
 
+    //used to keep track of the timestamp of the last save
+    const [saveTime, setSaveTime] = useState(Date.now());
+
     //used to authorize the user to access the project
     const [authorized, setAuthorized] = useState(true); 
 
@@ -50,7 +53,7 @@ export default function ProjectViewPage({user}) {
                     <meta name='keywords' content='chart, online chart, flow chart, online flow chart' />
                 </Head>
                 <MainNavbar />
-                <ProjectDataContext.Provider value = {{projectData, setProjectData, reload, setReload}}>
+                <ProjectDataContext.Provider value = {{projectData, setProjectData, reload, setReload, saveTime, setSaveTime}}>
                     {authorized && <ProjectEditor id={id} key={seed}/>}
                     {!authorized && <h1>Access Denied/ Does Not Exist</h1>}
                 </ProjectDataContext.Provider>
