@@ -1,15 +1,18 @@
-import React, {useState, useEffect, useRef, useContext } from 'react';
+import React, {useState, useEffect, useRef, useContext, createContext } from 'react';
 import { useUser } from '@auth0/nextjs-auth0/client';
-import { Button, Container, Row } from 'react-bootstrap';
+import { Button, Col, Container, Row } from 'react-bootstrap';
 import paper from "paper";
 import { Key, Point, Segment } from 'paper/dist/paper-core';
 import { ProjectDataContext } from '../pages/project-view/[id]';
+import StyleEditor from './StyleEditor';
+
+export const StyleContext = createContext(null);
 
 export default function ProjectEditor(props){
     const {user, error, isLoading } = useUser();
     const canvasRef = useRef(null);
     //retrieve the project Data hooks and the reload hooks from the index.js page
-    const {projectData, setProjectData, reload, setReload, saveTime, setSaveTime} = useContext(ProjectDataContext);
+    const {projectData, setProjectData, reload, setReload, saveTime, setSaveTime, styles, setStyles} = useContext(ProjectDataContext);
     //used to store the currient pathObjects from paper project
     const [pathObjectsReact, setPathObjectsReact] = useState([]);
     //used to store the render order of the path objects so that when we save to database that isnt lost
@@ -78,32 +81,50 @@ export default function ProjectEditor(props){
         for(var i = 0; i < projectData.projectJSON.objects.length; i++){
             var object = projectData.projectJSON.objects[i];
             //convert each object into a paper path object
-            if(object.type == "rectangle"){
-                //create a path object
-                var pathObject = new paper.Path.Rectangle(object.data);
-                pathObjects.push({
-                    object: pathObject, 
-                    type: "rectangle",
-                    index: i,
-                    linesConnected: object.linesConnected
-                });
-            }
-            if(object.type == "text-textBox"){
-                //create a path object
-                var pathObject = new paper.Path.Rectangle(object.data);
-                var textObject = new paper.PointText(object.textData);
-                //set there positions equal
-                textObject.position = pathObject.position;
+            if(object.type.startsWith("text-")){
+                var pathObject = null;
+                var textObject = null;
+                if(object.type == "text-rectangle"){
+                    //create a path object
+                    pathObject = new paper.Path.Rectangle(object.data);
+                    textObject = new paper.PointText(object.textData);
+                    //set there positions equal
+                    textObject.position = pathObject.position;
+                }
+                if(object.type == "text-ellipse"){
+                    //create a path object
+                    var pathObject = new paper.Path.Ellipse(object.data);
+                    var textObject = new paper.PointText(object.textData);
+                    //set there positions equal
+                    textObject.position = pathObject.position;
+                }
                 pathObjects.push({
                     object: pathObject,
                     textObject: textObject,
-                    type: "text-textBox",
+                    type: object.type,
                     textInputOffset: object.textInputOffset,
                     index: i,
-                    linesConnected: object.linesConnected
-                })
+                    linesConnected: object.linesConnected,
+                });
             }
-
+            else{
+                var pathObject = null;
+                if(object.type == "rectangle"){
+                    //create a path object
+                    pathObject = new paper.Path.Rectangle(object.data);
+                }
+                if(object.type == "ellipse"){
+                    //create a path object
+                    pathObject = new paper.Path.Ellipse(object.data);
+                }
+                pathObjects.push({
+                    object: pathObject, 
+                    type: object.type,
+                    index: i,
+                    linesConnected: object.linesConnected,
+                });
+            }
+            
             //add index to renderOrder
             renderOrder.push(i);
         }
@@ -319,8 +340,8 @@ export default function ProjectEditor(props){
             if(lineBeingMade == null){
                 var line = new paper.Path({
                     segments: [[event.point.x, event.point.y]],
-                    strokeWidth: 5,
-                    strokeColor: "black",
+                    strokeWidth: styles.lineData.strokeWidth,
+                    strokeColor: styles.lineData.strokeColor,
                 })
                 lineBeingMade = Math.random(); //random id for new line
                 var lineObject = {
@@ -429,7 +450,7 @@ export default function ProjectEditor(props){
             setLineObjectsReact(lineObjects);
         }
 
-        //the following 200 ish lines of code are just for calculating and handling scale of pathObjects.
+        //the following 300 ish lines of code are just for calculating and handling scale of pathObjects.
 
         //handle clicking on the background
         background.onMouseDown = function(event){
@@ -835,14 +856,14 @@ export default function ProjectEditor(props){
                         })
                     }
                 }
-                if(event.key == "c" && Key.modifiers.control){
+                if((event.key == "c" && Key.modifiers.control) || (event.key == "c" && Key.modifiers.control && Key.modifiers.alt)){
                     if(focused != null){
                         //save focused index for later printing
                         pathCopyIndex = focused;
                         pathCopyPosition = pathObjects[focused].object.position;
                     }
                 }
-                if(event.key == "v" && Key.modifiers.control){
+                if((event.key == "v" && Key.modifiers.control) || (event.key == "v" && Key.modifiers.control && Key.modifiers.alt)){
                     //clone paper objects
                     var object = {};
                     var pathObject = pathObjects[pathCopyIndex].object.clone();
@@ -851,7 +872,7 @@ export default function ProjectEditor(props){
                     if(pathObjects[pathCopyIndex].type.startsWith("text-")){
                         textObject = pathObjects[pathCopyIndex].textObject.clone();
                         textObject.position = pathObject.position;
-                        object = {index: pathObjects.length, type: pathObjects[pathCopyIndex].type, object: pathObject, textObject: textObject, textInputOffset: 0}
+                        object = {index: pathObjects.length, type: pathObjects[pathCopyIndex].type, object: pathObject, textObject: textObject, textInputOffset: 0, linesConnected: []}
                     }
                     else{
                         object = {index: pathObjects.length, type: pathObjects[pathCopyIndex].type, object: pathObject}
@@ -943,6 +964,7 @@ export default function ProjectEditor(props){
                 var insertLocation = content.length - pathObjects[catchTextInputChange].textInputOffset - 1;
                 content = content.slice(0, insertLocation) + content.slice(insertLocation + 1, content.length);
                 pathObjects[catchTextInputChange].textObject.content = content;
+                pathObjects[catchTextInputChange].textInputOffset = null;
                 if(textInputMode == true){
                     //if inside textInputMode update the Input change catcher to the new focused object and reset the textInput offset
                     pathObjects[catchTextInputChange].textInputOffset = 0;
@@ -992,29 +1014,19 @@ export default function ProjectEditor(props){
             var data = pathObjectsReact[index];
             var dataObject = {type: data.type, data: {}};
             //use the data.type to create a dataObject with the correct configuration
-            if(data.type == "rectangle"){
-                var width = data.object.bounds.size.width;
-                var height = data.object.bounds.size.height;
-                var x = data.object.bounds.topLeft.x;
-                var y = data.object.bounds.topLeft.y;
-                dataObject.data = {
-                    size: [width, height],
-                    point: [x , y],
-                    fillColor: data.object.style.fillColor.components
-                }
-                dataObject.linesConnected = data.linesConnected;
+            var width = data.object.bounds.size.width;
+            var height = data.object.bounds.size.height;
+            var x = data.object.bounds.topLeft.x;
+            var y = data.object.bounds.topLeft.y;
+            dataObject.data = {
+                size: [width, height],
+                point: [x , y],
+                strokeColor: data.object.style.strokeColor.components,
+                strokeWidth: data.object.strokeWidth,
+                fillColor: data.object.style.fillColor.components,
             }
-            if(data.type == "text-textBox"){
-                var width = data.object.bounds.size.width;
-                var height = data.object.bounds.size.height;
-                var x = data.object.bounds.topLeft.x;
-                var y = data.object.bounds.topLeft.y;
-                dataObject.data = {
-                    size: [width, height],
-                    point: [x , y],
-                    strokeColor: data.object.style.strokeColor.components,
-                    fillColor: data.object.style.fillColor.components
-                };
+            dataObject.linesConnected = data.linesConnected;
+            if(data.type.startsWith("text-")){
                 dataObject.textData = {
                     point: [x , y],
                     content: data.textObject.content,
@@ -1022,7 +1034,7 @@ export default function ProjectEditor(props){
                     fontSize: data.textObject.fontSize
                 };
                 dataObject.textInputOffset = data.textInputOffset;
-                dataObject.linesConnected = data.linesConnected;
+                
             }
             //dont save object if it has been deleted
             if(data.type != "deleted"){ 
@@ -1041,8 +1053,8 @@ export default function ProjectEditor(props){
                     line: {
                         segments: segments,
                         strokeWidth: lineObject.line.strokeWidth,
-                        strokeColor: lineObject.line.strokeColor,
-                        visible: lineObject.line.visible
+                        strokeColor: lineObject.line.strokeColor.components,
+                        visible: lineObject.line.visible,
                     },
                     index: lineObject.index,
                     type: lineObject.type
@@ -1058,7 +1070,7 @@ export default function ProjectEditor(props){
         setSaveTime(Math.floor(Date.now()));
         //compile the projectJSON object if not provided
         var tempProjectJSON = compileToProjectData();
-        
+        console.log(tempProjectJSON);
         //send the projectJson object to the server
         fetch(`/api/save-project?id=${props.id}`, {
             method: 'POST',
@@ -1069,55 +1081,29 @@ export default function ProjectEditor(props){
         })
     }
 
-    //temporary object adding function
-    function addObject(){
-        //retrieve the currient backend projectData
-        var tempProjectData = projectData;
-        //compile the currient frontend projectData into a backend projectJSON object
-        var tempProjectJSON = compileToProjectData();
-
-        //add a new backend data object to the projectJSON object
-        tempProjectJSON.objects.push({
-            data: {
-                size: [20,20],
-                fillColor: "yellow",
-                point: [Math.floor(Math.random() * 500), Math.floor(Math.random() * 500)]
-            },
-            type: "rectangle",
-            linesConnected: [],
-        }); 
-        
-        //set the projectJSON in the backend projectJSON to the new projectJSON with the new object
-        tempProjectData.projectJSON = tempProjectJSON;
-        //update the projectData react object
-        setProjectData(tempProjectData);
-        //save and reload the page to update the frontend
-        //tell the index.js page to reload the component with the new data
-        setReload(!reload);
-    }
-
     //textBox adding function
-    function addTextBox(){
+    function addNewNode(){
         //retrieve the currient backend projectData
         var tempProjectData = projectData;
         //compile the currient frontend projectData into a backend projectJSON object
         var tempProjectJSON = compileToProjectData();
 
-        //add a new textbox object to projectJSON object
+        //add a new data object to projectJSON object
         tempProjectJSON.objects.push({
             data: {
-                point: [100, 100],
-                size: [100, 50],
-                strokeColor: 'black',
-                fillColor: 'white'
+                point: styles.pathData.point,
+                size: styles.pathData.size,
+                strokeColor: styles.pathData.strokeColor,
+                strokeWidth: styles.pathData.strokeWidth,
+                fillColor: styles.pathData.fillColor,
             },
             textData: {
-                point: [100, 100],
-                content: 'Hello, World!',
-                fillColor: 'black',
-                fontSize: 12
+                point: styles.pathData.point,
+                content: styles.textData.content,
+                fillColor: styles.textData.fillColor,
+                fontSize: styles.textData.fontSize,
             },
-            type: "text-textBox",
+            type: styles.type,
             textInputOffset: null,
             linesConnected: [],
         });
@@ -1155,13 +1141,14 @@ export default function ProjectEditor(props){
                     </div>
                 </Row>
                 <Row className="justify-content-md-center">
-                    <div style={{width: '24rem'}}>
-                        <Button variant="dark" onClick={saveProject}>Save</Button>
-                        <Button variant="primary" onClick={addObject}>temp add</Button>
-                        <Button variant="primary" onClick={addTextBox}>add text box</Button>
-                    </div>
+                    <Button variant="dark" onClick={saveProject} style={{width: '12rem'}}>Save</Button>
+                    <Button variant="primary" onClick={addNewNode} style={{width: '12rem'}}>Add New Node</Button>
+                    <StyleContext.Provider value = {{styles, setStyles}}>
+                        <StyleEditor />
+                    </StyleContext.Provider>
                 </Row>
             </Container>
+            
             <div>
                 <canvas ref={canvasRef} width={800} height={1000} style={{
                     display:"block",
