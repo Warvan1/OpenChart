@@ -31,7 +31,7 @@ export default function ProjectEditor(props){
         //create an empty project and a view for the canvas
         paper.setup(canvas);
         //set the view size
-        paper.view.viewSize = [800, 1000];
+        paper.view.viewSize = [1000, 1000];
 
         //keep track of if an item is focused
         var focused = null;
@@ -52,9 +52,9 @@ export default function ProjectEditor(props){
         //set up background
         var background = new paper.Path.Rectangle({
             point: [0,0], 
-            size:[800,1000],
-            fillColor: [0.9,0.9,0.9],
-            strokeColor: [0.5,0.5,0.5],
+            size:[1000,1000],
+            fillColor: [1,1,1],
+            strokeColor: [0,0,0],
             strokeWidth: 10,
         });
 
@@ -98,6 +98,32 @@ export default function ProjectEditor(props){
                     //set there positions equal
                     textObject.position = pathObject.position;
                 }
+                if(object.type.includes("text-triangle")){
+                    var segments = [];
+                    if(object.type == "text-triangleUp" || object.type == "text-triangle"){
+                        segments = [[object.data.point[0] + object.data.size[0]/2, object.data.point[1]], [object.data.point[0], object.data.point[1] + object.data.size[1]], [object.data.point[0] + object.data.size[0], object.data.point[1] + object.data.size[1]]];
+                    }
+                    if(object.type == "text-triangleDown"){
+                        segments = [[object.data.point[0] + object.data.size[0]/2, object.data.point[1] + object.data.size[1]], [object.data.point[0], object.data.point[1]], [object.data.point[0] + object.data.size[0], object.data.point[1]]];
+                    }
+                    if(object.type == "text-triangleRight"){
+                        segments = [[object.data.point[0], object.data.point[1]], [object.data.point[0], object.data.point[1]+ object.data.size[1]], [object.data.point[0] + object.data.size[0], object.data.point[1] + object.data.size[1]/2]];
+                    }
+                    if(object.type == "text-triangleLeft"){
+                        segments = [[object.data.point[0] + object.data.size[0], object.data.point[1]], [object.data.point[0] + object.data.size[0], object.data.point[1] + object.data.size[1]], [object.data.point[0], object.data.point[1] + object.data.size[1]/2]];
+                    }
+                    pathObject = new paper.Path({
+                        segments: segments,
+                        closed: true,
+                        strokeColor: object.data.strokeColor,
+                        strokeWidth: object.data.strokeWidth,
+                        fillColor: object.data.fillColor,
+                    })
+                    var textObject = new paper.PointText(object.textData);
+                    //set there positions equal
+                    textObject.position = pathObject.position;
+                }
+
                 pathObjects.push({
                     object: pathObject,
                     textObject: textObject,
@@ -117,6 +143,29 @@ export default function ProjectEditor(props){
                     //create a path object
                     pathObject = new paper.Path.Ellipse(object.data);
                 }
+                if(object.type.includes("triangle")){
+                    var segments = [];
+                    if(object.type == "triangleUp" || object.type == "triangle"){
+                        segments = [[object.data.point[0] + object.data.size[0]/2, object.data.point[1]], [object.data.point[0], object.data.point[1] + object.data.size[1]], [object.data.point[0] + object.data.size[0], object.data.point[1] + object.data.size[1]]];
+                    }
+                    if(object.type == "triangleDown"){
+                        segments = [[object.data.point[0] + object.data.size[0]/2, object.data.point[1] + object.data.size[1]], [object.data.point[0], object.data.point[1]], [object.data.point[0] + object.data.size[0], object.data.point[1]]];
+                    }
+                    if(object.type == "triangleRight"){
+                        segments = [[object.data.point[0], object.data.point[1]], [object.data.point[0], object.data.point[1]+ object.data.size[1]], [object.data.point[0] + object.data.size[0], object.data.point[1] + object.data.size[1]/2]];
+                    }
+                    if(object.type == "triangleLeft"){
+                        segments = [[object.data.point[0] + object.data.size[0], object.data.point[1]], [object.data.point[0] + object.data.size[0], object.data.point[1] + object.data.size[1]], [object.data.point[0], object.data.point[1] + object.data.size[1]/2]];
+                    }
+                    pathObject = new paper.Path({
+                        segments: segments,
+                        closed: true,
+                        strokeColor: object.data.strokeColor,
+                        strokeWidth: object.data.strokeWidth,
+                        fillColor: object.data.fillColor,
+                    })
+                }
+
                 pathObjects.push({
                     object: pathObject, 
                     type: object.type,
@@ -233,7 +282,8 @@ export default function ProjectEditor(props){
         //reduce the projectData.lines to line objects on project load
         projectData.projectJSON.lines.forEach((line) => {
             if(line.type == "normal"){
-                var lineObject = new paper.Path(line.line)
+                var lineObject = new paper.Path(line.line);
+                lineObject.strokeCap = "round";
                 lineObjects.push({
                     line: lineObject,
                     startObjectIndex: null,
@@ -342,6 +392,7 @@ export default function ProjectEditor(props){
                     segments: [[event.point.x, event.point.y]],
                     strokeWidth: styles.lineData.strokeWidth,
                     strokeColor: styles.lineData.strokeColor,
+                    strokeCap: "round",
                 })
                 lineBeingMade = Math.random(); //random id for new line
                 var lineObject = {
@@ -372,7 +423,6 @@ export default function ProjectEditor(props){
                             segments.push([segment.point.x, segment.point.y]);
                         })
                         segments.push([event.point.x, event.point.y]);
-                        console.log(segments);
 
                         //create a new lineObject based on the old one but with the new segments and endObject data
                         var newLine = {
@@ -380,6 +430,7 @@ export default function ProjectEditor(props){
                                 segments: segments,
                                 strokeWidth: line.line.strokeWidth,
                                 strokeColor: line.line.strokeColor,
+                                strokeCap: "round",
                             }),
                             startObjectIndex: line.startObjectIndex,
                             startObjectHandle: line.startObjectHandle,
@@ -768,7 +819,6 @@ export default function ProjectEditor(props){
         const tool = new paper.Tool();
 
         tool.onKeyDown = function(event){
-            console.log(event.key);
             if(textInputMode){
                 var textInputOffset = pathObjects[focused].textInputOffset;
                 var content = pathObjects[focused].textObject.content;
@@ -893,7 +943,6 @@ export default function ProjectEditor(props){
         
         //runs every animation frame
         paper.view.onFrame = function(event){
-            //console.log(`${focused}     ${lineFocused}`);
             //handle focus highlighting
             //set the highlight items to invisible when unfocused
             if(focused == null){
@@ -1070,7 +1119,6 @@ export default function ProjectEditor(props){
         setSaveTime(Math.floor(Date.now()));
         //compile the projectJSON object if not provided
         var tempProjectJSON = compileToProjectData();
-        console.log(tempProjectJSON);
         //send the projectJson object to the server
         fetch(`/api/save-project?id=${props.id}`, {
             method: 'POST',
@@ -1121,6 +1169,9 @@ export default function ProjectEditor(props){
         const timerId = setTimeout(() => {
             var minutes = Math.floor((Date.now() - saveTime)/60000);
             var seconds = Math.floor(((Date.now() - saveTime)/1000) - minutes*60);
+            if(seconds < 10){
+                seconds = `0${seconds}`;
+            }
             setSaveTimeUpdate({minutes: minutes, seconds: seconds});
         }, 1000);
         return function cleanup() {
@@ -1133,29 +1184,36 @@ export default function ProjectEditor(props){
 
     return (
         <div>
-            <Container>
-                <Row className="justify-content-md-center">
-                    <div style={{width: '18rem'}}>
-                        <h3>{projectData.title}</h3>
-                        <p>Time Since Last Save: {saveTimeUpdate.minutes}:{saveTimeUpdate.seconds}</p>
-                    </div>
-                </Row>
-                <Row className="justify-content-md-center">
-                    <Button variant="dark" onClick={saveProject} style={{width: '12rem'}}>Save</Button>
-                    <Button variant="primary" onClick={addNewNode} style={{width: '12rem'}}>Add New Node</Button>
+            <br />
+            <Container fluid>
+                <Row>
+                    <Col md="auto">
+
+                    </Col>
                     <StyleContext.Provider value = {{styles, setStyles}}>
                         <StyleEditor />
                     </StyleContext.Provider>
+                    <Col md="auto">
+                        <Row>
+                            <h3>{projectData.title}</h3>
+                        </Row>
+                        <br />
+                        <Row >
+                            <Col md="auto">
+                                <Button variant="primary" onClick={addNewNode} >Add New Node</Button>
+                            </Col>
+                            <Col md="auto">
+                                <Button variant="dark" onClick={saveProject} >Save</Button>
+                            </Col>
+                            <Col md="auto">
+                                <Button variant="secondary">Time Since Last Save: {saveTimeUpdate.minutes}:{saveTimeUpdate.seconds}</Button>
+                            </Col>
+                        </Row>
+                        <br />
+                        <canvas ref={canvasRef} width={1000} height={1000} />
+                    </Col>
                 </Row>
             </Container>
-            
-            <div>
-                <canvas ref={canvasRef} width={800} height={1000} style={{
-                    display:"block",
-                    marginLeft: "auto",
-                    marginRight: "auto",
-                }} />
-            </div>
         </div>
     );
 }

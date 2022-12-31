@@ -41,7 +41,7 @@ export default function ProjectViewPage({user}) {
         },
         lineData: {
             strokeWidth: 5,
-            strokeColor: "#0000ff"
+            strokeColor: "#000000",
         },
         type: "text-rectangle",
     });
@@ -78,7 +78,7 @@ export default function ProjectViewPage({user}) {
                     <title>Open Chart</title>
                     <meta name='keywords' content='chart, online chart, flow chart, online flow chart' />
                 </Head>
-                <MainNavbar />
+                <MainNavbar projectView={true} title={projectData.title}/>
                 <ProjectDataContext.Provider value = {{projectData, setProjectData, reload, setReload, saveTime, setSaveTime, styles, setStyles}}>
                     {authorized && <ProjectEditor id={id} key={seed}/>}
                     {!authorized && <h1>Access Denied/ Does Not Exist</h1>}

@@ -1,6 +1,5 @@
 import { withPageAuthRequired } from '@auth0/nextjs-auth0';
-import Head from 'next/head'
-import Image from 'next/image'
+import Head from 'next/head';
 import MainNavbar from '../components/MainNavBar';
 import ProjectsList from '../components/ProjectsList';
 import CreateProject from '../components/CreateProject';

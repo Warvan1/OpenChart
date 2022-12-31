@@ -34,7 +34,6 @@ export default function ProjectsListCard(props){
                     <Card.Body>
                         <Card.Title>{props.project.title}</Card.Title>
                         <Button variant="dark" href={viewLink}>View</Button>
-                        <Button variant="primary">Share</Button>
                         <Button variant="danger" onClick={confirmDeleteShow}>Delete</Button>
                     </Card.Body>
                 </Card>
