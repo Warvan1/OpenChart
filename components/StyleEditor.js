@@ -9,8 +9,8 @@ export default function StyleEditor(props){
     const {styles, setStyles} = useContext(StyleContext);
     //object to store temp styles
     const [tempStyles, setTempStyles] = useState(styles);
-    //used to show and hide the editor
-    const [show, setShow] = useState(false);
+    //used to keep track of if the window is small or large
+    const [windowSmall, setWindowSmall] = useState(false);
     //used to hold the currient color picker color
     const [color, setColor] = useState('#ffffff');
     //used to hold the currient present colors
@@ -53,16 +53,6 @@ export default function StyleEditor(props){
             return "Up";
         }
     });
-
-    //show the modal
-    function handleShow(){
-        setShow(true);
-    }
-
-    //hide the modal
-    function handleClose(){
-        setShow(false);
-    }
 
     //update the node styles from temp styles and hide modal
     function handleUpdateStyles(){
@@ -194,7 +184,7 @@ export default function StyleEditor(props){
         setTempStyles(styles);
     }, [styles]);
 
-    //runs whenever show changes to make sure that our default values are set in the modal
+    //runs at startup to set initial styles and when we change betwene top and bottom bar
     useEffect(() => {
         if(strokeWidthInputRef.current != null){
             strokeWidthInputRef.current.value = tempStyles.pathData.strokeWidth;
@@ -220,16 +210,29 @@ export default function StyleEditor(props){
         if(lineWidthInputRef.current != null){
             lineWidthInputRef.current.value = tempStyles.lineData.strokeWidth;
         }
-    }, [show]);
+    }, [windowSmall]);
 
     //update the styles when state changes
     useEffect(() => {
         handleUpdateStyles();
     }, [objectType, textObjectMode, triangleMode]);
 
+    //runs 10 times a second keeping the window size variable updated
+    useEffect(() => {
+        setInterval(() => {
+            if(window.innerWidth < 1600){
+                setWindowSmall(true);
+            }
+            else{
+                setWindowSmall(false);
+            }
+        }, 100)
+    }, [])
+
+    //use different layout when window width < 1600
     return(
         <>
-        <Col md={4}>
+        {!windowSmall && <Col md={4}>
             <Row>
                 <h5>Node Type</h5>
             </Row>
@@ -456,7 +459,236 @@ export default function StyleEditor(props){
             <Row>
                 <p> All sizes and positions relative to page size: 1000x1000</p>
             </Row>
-        </Col>
+        </Col>}
+
+        {windowSmall && <Col md={12}>
+            <Row>
+                <Col md="auto">
+                    <Row>
+                        <h5>Node Type</h5>
+                    </Row>
+                    <Row>
+                        <Col md="auto">
+                            {objectType == "rectangle" && <Button variant="secondary" style={{backgroundColor: "#ff9100", color: "#000000"}}>Rectangle</Button>}
+                            {objectType != "rectangle" && <Button variant="secondary" onClick={() => {setObjectType("rectangle")}}>Rectangle</Button>}
+                        </Col>
+                        <Col md="auto">
+                            {objectType == "triangle" && <Button variant="secondary" style={{backgroundColor: "#ff9100", color: "#000000"}}>Triangle</Button>}
+                            {objectType != "triangle" && <Button variant="secondary" onClick={() => {setObjectType("triangle")}}>Triangle</Button>}
+                        </Col>
+                        <Col md="auto">
+                            {objectType == "ellipse" && <Button variant="secondary" style={{backgroundColor: "#ff9100", color: "#000000"}}>Circle</Button>}
+                            {objectType != "ellipse" && <Button variant="secondary" onClick={() => {setObjectType("ellipse")}}>Circle</Button>}
+                        </Col>
+                    </Row>
+                    <br />
+                    <Row>
+                        <h5>Include Text</h5>
+                    </Row>
+                    <Row>
+                        <Col md="auto">
+                            {textObjectMode && <Button variant="secondary" style={{backgroundColor: "#ff9100", color: "#000000"}}>Yes</Button>}
+                            {!textObjectMode && <Button variant="secondary" onClick={() => {setTextObjectMode(true)}}>Yes</Button>}
+                        </Col>
+                        <Col md="auto">
+                            {!textObjectMode && <Button variant="secondary" style={{backgroundColor: "#ff9100", color: "#000000"}}>No</Button>}
+                            {textObjectMode && <Button variant="secondary" onClick={() => {setTextObjectMode(false)}}>No</Button>}
+                        </Col>
+                    </Row>
+                    <br />
+                    {objectType == "triangle" &&<Row>
+                        <h5>Triangle Direction</h5>
+                    </Row>}
+                    <Row>
+                        {objectType == "triangle" && <Col md="auto">
+                            {triangleMode == "Up" && <Button variant="secondary" style={{backgroundColor: "#ff9100", color: "#000000"}}>Up</Button>}
+                            {triangleMode != "Up" && <Button variant="secondary" onClick={() => {setTriangleMode("Up")}}>Up</Button>}
+                        </Col>}
+                        {objectType == "triangle" && <Col md="auto">
+                            {triangleMode == "Down" && <Button variant="secondary" style={{backgroundColor: "#ff9100", color: "#000000"}}>down</Button>}
+                            {triangleMode != "Down" && <Button variant="secondary" onClick={() => {setTriangleMode("Down")}}>Down</Button>}
+                        </Col>}
+                        {objectType == "triangle" && <Col md="auto">
+                            {triangleMode == "Left" && <Button variant="secondary" style={{backgroundColor: "#ff9100", color: "#000000"}}>Left</Button>}
+                            {triangleMode != "Left" && <Button variant="secondary" onClick={() => {setTriangleMode("Left")}}>Left</Button>}
+                        </Col>}
+                        {objectType == "triangle" && <Col md="auto">
+                            {triangleMode == "Right" && <Button variant="secondary" style={{backgroundColor: "#ff9100", color: "#000000"}}>Right</Button>}
+                            {triangleMode != "Right" && <Button variant="secondary" onClick={() => {setTriangleMode("Right")}}>Right</Button>}
+                        </Col>}
+                    </Row>
+                </Col>
+                <Col md="auto">
+                    <Row>
+                        <SketchPicker color={color} presetColors={presetColors} onChange={handleColorChange} disableAlpha={true}/>
+                    </Row>
+                    <br />
+                </Col>
+                <Col md={2}>
+                    <Row>
+                        <h5>Color</h5>
+                    </Row>
+                    <Row>
+                        <Col md={6}>
+                            <Button variant="secondary" onClick={updateFillColor}>Fill</Button>
+                        </Col>
+                        <Col md={4}>
+                            <Button variant="secondary" onClick={updateFillColor} style={{backgroundColor: tempStyles.pathData.fillColor}}><BucketIcon /></Button>
+                        </Col>  
+                    </Row>
+                    <Row>
+                        <Col md={6}>
+                            <Button variant="secondary" onClick={updateStrokeColor}>Stroke</Button>
+                        </Col>
+                        <Col md={4}>
+                            <Button variant="secondary" onClick={updateStrokeColor} style={{backgroundColor: tempStyles.pathData.strokeColor}}><SquareIcon /></Button>
+                        </Col>
+                    </Row>
+                    {textObjectMode && <Row>
+                        <Col md={6}>
+                            <Button variant="secondary" onClick={updateTextColor}>Text</Button>
+                        </Col>
+                        <Col md={4}>
+                            <Button variant="secondary" onClick={updateTextColor} style={{backgroundColor: tempStyles.textData.fillColor}}><BrushIcon /></Button>
+                        </Col>
+                    </Row>}
+                    <br />
+                    <Row>
+                        <h5>Lines</h5>
+                    </Row>
+                    <Row>
+                        <Col md={6}>
+                            <Button variant="secondary">Width</Button>
+                        </Col>
+                        <Col md={6}>
+                            <Form>
+                                <Form.Group>
+                                    <Form.Control ref={lineWidthInputRef} onChange={handleUpdateStyles} maxLength={2}></Form.Control>
+                                </Form.Group>
+                            </Form>
+                        </Col>
+                    </Row>
+                    <Row>
+                        <Col md={6}>
+                            <Button variant="secondary" onClick={updateLineColor}>Color</Button>
+                        </Col>
+                        <Col md={4}>
+                            <Button variant="secondary" onClick={updateLineColor} style={{backgroundColor: tempStyles.lineData.strokeColor}}><ArrowRightIcon /></Button>
+                        </Col>
+                    </Row>
+                </Col>
+                <Col md={3}>
+                    <Row>
+                        <h5>Details</h5>
+                    </Row>
+                    <Row>
+                        <Col md={6}>
+                            <Button variant="secondary">Stroke Width</Button>
+                        </Col>
+                        <Col md={4}>
+                            <Form>
+                                <Form.Group>
+                                    <Form.Control ref={strokeWidthInputRef} onChange={handleUpdateStyles} maxLength={2}></Form.Control>
+                                </Form.Group>
+                            </Form>
+                        </Col>
+                    </Row>
+                    {textObjectMode && <Row>
+                        <Col md={6}>
+                            <Button variant="secondary">Font Size</Button>
+                        </Col>
+                        <Col md={4}>
+                            <Form>
+                                <Form.Group>
+                                    <Form.Control ref={fontSizeInputRef} onChange={handleUpdateStyles} maxLength={2}></Form.Control>
+                                </Form.Group>
+                            </Form>
+                        </Col>
+                    </Row>}
+                    
+                </Col>
+                <Col md={4}>
+                    <br />
+                    {textObjectMode && <Row>
+                        <h5>Text Content</h5>
+                    </Row>}
+                    {textObjectMode && <Row>
+                        <Col md={12}>
+                            <Form>
+                                <Form.Group>
+                                    <Form.Control as="textarea" rows={3} ref={textContentInputRef} onChange={handleUpdateStyles} maxLength={200}></Form.Control>
+                                </Form.Group>
+                            </Form>
+                        </Col>
+                    </Row>}
+                    <br />
+                </Col>
+                <Col md={2}>
+                    <br />
+                    <Row>
+                        <h5>Size</h5>
+                    </Row>
+                    <Row>
+                        <Col md={6}>
+                            <Button variant="secondary">Width</Button>
+                        </Col>
+                        <Col md={6}>
+                            <Form>
+                                <Form.Group>
+                                    <Form.Control ref={widthInputRef} onChange={handleUpdateStyles} maxLength={3}></Form.Control>
+                                </Form.Group>
+                            </Form>
+                        </Col>
+                    </Row>
+                    <Row>
+                        <Col md={6}>
+                            <Button variant="secondary">Height</Button>
+                        </Col>
+                        <Col md={6}>
+                            <Form>
+                                <Form.Group>
+                                    <Form.Control ref={heightInputRef} onChange={handleUpdateStyles} maxLength={3}></Form.Control>
+                                </Form.Group>
+                            </Form>
+                        </Col>
+                    </Row>
+                    <br />
+                </Col>
+                <Col md={2}>
+                    <br />
+                    <Row>
+                        <h5>Position</h5>
+                    </Row>
+                    <Row>
+                        <Col md={4}>
+                            <Button variant="secondary">X</Button>
+                        </Col>
+                        <Col md={6}>
+                            <Form>
+                                <Form.Group>
+                                    <Form.Control ref={xpositionInputRef} onChange={handleUpdateStyles} maxLength={3}></Form.Control>
+                                </Form.Group>
+                            </Form>
+                        </Col>
+                    </Row>
+                    <Row>
+                        <Col md={4}>
+                            <Button variant="secondary">Y</Button>
+                        </Col>
+                        <Col md={6}>
+                            <Form>
+                                <Form.Group>
+                                    <Form.Control ref={ypositionInputRef} onChange={handleUpdateStyles} maxLength={3}></Form.Control>
+                                </Form.Group>
+                            </Form>
+                        </Col>
+                    </Row>
+                </Col>
+            </Row>
+            <Row>
+                <p> All sizes and positions relative to page size: 1000x1000</p>
+            </Row>
+        </Col>}
         </>
     )
 }

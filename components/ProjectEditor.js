@@ -58,6 +58,71 @@ export default function ProjectEditor(props){
             strokeWidth: 10,
         });
 
+        function createArrow(line){
+            var point1 = line.segments[line.segments.length-2].point;
+            var point2 = line.segments[line.segments.length-1].point;
+            var deltaX = point1.x - point2.x;
+            var deltaY = point1.y - point2.y;
+            var slope = deltaY / deltaX;
+            var lineDistance = Math.sqrt((deltaX*deltaX) + (deltaY*deltaY));
+            var adjustedDistance = lineDistance/(line.strokeWidth*4);
+
+            //refrence point a certian distance from endpoint.
+            var xRef = point2.x + deltaX/adjustedDistance;
+            var yRef = point2.y + deltaY/adjustedDistance;
+        
+            //create a perpendicular line at the refrence point
+            var trianglePoint1 = null;
+            var trianglePoint2 = null;
+            //slowly increase the xPrime of the perpendicular line till its the desired size
+            var triangleDistance = 0;
+            var xPrime = 0;
+            var xPrimeStep = 1;
+            if(Math.abs(slope)  < 0.01){ //if slope is REALLY small we treat it as if its 0
+                trianglePoint1 = {
+                    x: xRef,
+                    y: yRef + line.strokeWidth,
+                }
+                trianglePoint2 = {
+                    x: xRef,
+                    y: yRef - line.strokeWidth,
+                }
+            }
+            else{
+                if(Math.abs(slope) < 0.5){
+                    xPrimeStep = 0.1;
+                }
+                if(Math.abs(slope) < 0.1){
+                    xPrimeStep = 0.01;
+                }
+                while(triangleDistance < line.strokeWidth*2){ 
+                    var yPrime = xPrime*(-1/slope);
+                    trianglePoint1 = {
+                        x: xRef + xPrime, 
+                        y: yRef + yPrime,
+                    }
+                    trianglePoint2 = {
+                        x: xRef - xPrime, 
+                        y: yRef - yPrime,
+                    }
+                    var triangleDeltaX = trianglePoint1.x - trianglePoint2.x;
+                    var triangleDeltaY = trianglePoint1.y - trianglePoint2.y;
+                    var triangleDistance = Math.sqrt((triangleDeltaX*triangleDeltaX) + (triangleDeltaY*triangleDeltaY));
+                    xPrime = xPrime + xPrimeStep;
+                }
+            }
+            
+
+            return new paper.Path({
+                segments: [[point2.x, point2.y],[trianglePoint1.x, trianglePoint1.y], [trianglePoint2.x, trianglePoint2.y]],
+                strokeWidth: line.strokeWidth,
+                strokeColor: line.strokeColor,
+                fillColor: line.strokeColor,
+                strokeCap: "round",
+                closed: true,
+            });
+        }
+
         //focusHighlighting objects
         var highlightObject1 = {center: [0,0], radius: 5, fillColor: [0.2,0.8,0.8]};
         var highlightObject2 = {center: [0,0], radius: 5, fillColor: [0,1,0.2]};
@@ -286,6 +351,7 @@ export default function ProjectEditor(props){
                 lineObject.strokeCap = "round";
                 lineObjects.push({
                     line: lineObject,
+                    arrow: createArrow(lineObject),
                     startObjectIndex: null,
                     startObjectHandle: null,
                     endObjectIndex: null,
@@ -397,6 +463,7 @@ export default function ProjectEditor(props){
                 lineBeingMade = Math.random(); //random id for new line
                 var lineObject = {
                     line: line,
+                    arrow: null,
                     startObjectIndex: focused,
                     startObjectHandle: handle,
                     endObjectIndex: null,
@@ -425,13 +492,15 @@ export default function ProjectEditor(props){
                         segments.push([event.point.x, event.point.y]);
 
                         //create a new lineObject based on the old one but with the new segments and endObject data
+                        var tempLine = new paper.Path({
+                            segments: segments,
+                            strokeWidth: line.line.strokeWidth,
+                            strokeColor: line.line.strokeColor,
+                            strokeCap: "round",
+                        })
                         var newLine = {
-                            line: new paper.Path({
-                                segments: segments,
-                                strokeWidth: line.line.strokeWidth,
-                                strokeColor: line.line.strokeColor,
-                                strokeCap: "round",
-                            }),
+                            line: tempLine,
+                            arrow: createArrow(tempLine),
                             startObjectIndex: line.startObjectIndex,
                             startObjectHandle: line.startObjectHandle,
                             endObjectIndex: focused,
@@ -463,11 +532,17 @@ export default function ProjectEditor(props){
 
         function updateLineEnds(index){
             lineObjects.forEach((lineObject) => {
-                if(lineObject.startObjectIndex == index){
+                if(lineObject.startObjectIndex == index && lineObject.type != "deleted"){
                     doUpdate(0, index, lineObject.startObjectHandle);
+                    if(lineObject.line.segments.length < 3 && lineObject.arrow != null){
+                        lineObject.arrow.remove();
+                        lineObject.arrow = createArrow(lineObject.line);
+                    }
                 }
-                else if(lineObject.endObjectIndex == index){
+                else if(lineObject.endObjectIndex == index && lineObject.type != "deleted"){
                     doUpdate(lineObject.line.segments.length - 1, index, lineObject.endObjectHandle);
+                    lineObject.arrow.remove();
+                    lineObject.arrow = createArrow(lineObject.line);
                 }
 
                 function doUpdate(lineIndex, pathIndex, handle){
@@ -887,6 +962,9 @@ export default function ProjectEditor(props){
                             lineObjects.forEach((line) => {
                                 if(objectLine.index == line.index){
                                     line.line.remove();
+                                    if(line.arrow != null){
+                                        line.arrow.remove();
+                                    }
                                     line.type = "deleted";
                                 }
                             })
@@ -899,6 +977,9 @@ export default function ProjectEditor(props){
                         lineObjects.forEach((line) => {
                             if(line.index == lineFocused){
                                 line.line.remove();
+                                if(line.arrow != null){
+                                    line.arrow.remove();
+                                }
                                 line.type = "deleted";
                                 //make sure to remove highlighting
                                 clearLineHighlight();
