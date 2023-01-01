@@ -42,7 +42,7 @@ export default function HomePage() {
         <Row className="justify-content-md-center">
           <Col md={4}>
             <Row>
-              <Button variant="warning"> <h5>Select a node and hold control while clicking on one of the handles.</h5></Button>
+              <Button variant="secondary" style={{backgroundColor: "#f7ce02"}}> <h5>Select a node and hold control while clicking on one of the handles.</h5></Button>
             </Row>
             <Row>
               <Image src={lineDiagram1} alt="" />
@@ -50,7 +50,7 @@ export default function HomePage() {
           </Col>
           <Col md={4}>
             <Row>
-              <Button variant="success"> <h5>You can create joints in the line by holding shift while clicking on the background.</h5></Button>
+              <Button variant="secondary" style={{backgroundColor: "#04d488"}}> <h5>You can create joints in the line by holding shift while clicking on the background.</h5></Button>
             </Row>
             <Row>
               <Image src={lineDiagram2} alt="" />
@@ -58,7 +58,7 @@ export default function HomePage() {
           </Col>
           <Col md={4}>
             <Row>
-              <Button variant="info"> <h5>To finish the line hold control and click on the handle of a different node.</h5></Button>
+              <Button variant="secondary" style={{backgroundColor: "#3d73c4"}}> <h5>To finish the line hold control and click on the handle of a different node.</h5></Button>
             </Row>
             <Row>
               <Image src={lineDiagram3} alt="" />
