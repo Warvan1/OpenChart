@@ -35,7 +35,7 @@ export default function ProjectsListCard(props){
                     <Card.Body>
                         <Card.Title>{props.project.title}</Card.Title>
                         {props.project.projectSVG != null && <object data={"data:image/svg+xml;utf8," + encodeURIComponent(props.project.projectSVG.svg)} width="300" height="300"></object>}
-                        {props.project.projectSVG == null && <object data="defaultProjectIcon.svg" width="300" height="300"></object>}
+                        {props.project.projectSVG == null && <object data="favicon.ico" width="300" height="300"></object>}
                         <Card.Footer>
                             <Button variant="info" href={viewLink}>Edit</Button>
                             {props.project.projectSVG != null && <DownloadProject text="Download" variant="success" svg={props.project.projectSVG.svg} fileName={props.project.title}/>}
