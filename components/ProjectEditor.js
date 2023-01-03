@@ -1,10 +1,11 @@
 import React, {useState, useEffect, useRef, useContext, createContext } from 'react';
 import { useUser } from '@auth0/nextjs-auth0/client';
-import { Button, Col, Container, Row } from 'react-bootstrap';
+import { Button, Col, Container, InputGroup, Row } from 'react-bootstrap';
 import paper from "paper";
 import { Key, Point, Segment } from 'paper/dist/paper-core';
 import { ProjectDataContext } from '../pages/project-view/[id]';
 import StyleEditor from './StyleEditor';
+import DownloadProject from './DownloadProject';
 
 export const StyleContext = createContext(null);
 
@@ -19,6 +20,8 @@ export default function ProjectEditor(props){
     const [renderOrderReact, setRenderOrderReact] = useState([]);
     //used to keep track of line Objects from paper project
     const [lineObjectsReact, setLineObjectsReact] = useState([]);
+    //used to hold a svg version of the project
+    const [svgFile, setSvgFile] = useState(null);
     //used to make sure we only setup the screen once
     const [updated, setUpdated] = useState(false);
     //used to update the since last save clock
@@ -987,14 +990,14 @@ export default function ProjectEditor(props){
                         })
                     }
                 }
-                if((event.key == "c" && Key.modifiers.control) || (event.key == "c" && Key.modifiers.control && Key.modifiers.alt)){
+                if((event.key == "c" && Key.modifiers.control) || (event.key == "c" && Key.modifiers.shift)){
                     if(focused != null){
                         //save focused index for later printing
                         pathCopyIndex = focused;
                         pathCopyPosition = pathObjects[focused].object.position;
                     }
                 }
-                if((event.key == "v" && Key.modifiers.control) || (event.key == "v" && Key.modifiers.control && Key.modifiers.alt)){
+                if((event.key == "v" && Key.modifiers.control) || (event.key == "v" && Key.modifiers.shift)){
                     //clone paper objects
                     var object = {};
                     var pathObject = pathObjects[pathCopyIndex].object.clone();
@@ -1120,6 +1123,9 @@ export default function ProjectEditor(props){
         
         //view the project
         paper.view.draw();
+
+        //create an svg of the project
+        setSvgFile(convertToSVG(true))
     }
 
     //update screen on page load after projectData loads
@@ -1194,21 +1200,74 @@ export default function ProjectEditor(props){
         return tempProjectJSON;
     }
 
+    function convertToSVG(asString){
+        // https://github.com/paperjs/paper.js/issues/988
+        return paper.project.exportSVG({
+            asString: asString,
+            onExport: (item, node) => {
+                if (item._class === 'PointText') {
+                    node.textContent = null;
+                    for (let i = 0; i < item._lines.length; i++) {
+                        let tspan = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+                        tspan.textContent = item._lines[i];
+                        let dy = item.leading;
+                        if (i === 0) {
+                            dy = 0;
+                        }
+                        tspan.setAttributeNS(null, 'x', node.getAttribute('x'));
+                        tspan.setAttributeNS(null, 'dy', dy);
+                        node.appendChild(tspan);
+                    }
+                }
+                return node;
+            }
+        });
+    }
+
     //save the project to the mysql database
     function saveProject(){
         //reset time since last save
         setSaveTime(Math.floor(Date.now()));
         //compile the projectJSON object if not provided
         var tempProjectJSON = compileToProjectData();
+        //save the paper project as an svg as well
+        var tempSvgFile = convertToSVG(true);
+        setSvgFile(tempSvgFile);
         //send the projectJson object to the server
         fetch(`/api/save-project?id=${props.id}`, {
             method: 'POST',
             headers: {
                 'content-type': 'application/json'
             },
-            body: JSON.stringify(tempProjectJSON),
+            body: JSON.stringify({projectJSON: tempProjectJSON, projectSVG: tempSvgFile}),
         })
     }
+
+    // //download svg of file
+    // function downloadSVG(fileName){
+    //     var url = "data:image/svg+xml;utf8," + encodeURIComponent(svgFile);
+    //     const link = document.createElement("a");
+    //     link.download = fileName;
+    //     link.href = url;
+    //     link.click();
+    // }
+
+    // //download png of file
+    // function downloadPNG(fileName){
+    //     fetch(`/api/convert-to-png?data=${encodeURIComponent(svgFile)}`).then(
+    //         async (response) => {
+    //             //create an image object from the image returned form the backend
+    //             const blob = await response.blob();
+    //             const blobUrl = window.URL.createObjectURL(blob);
+    //             const link = document.createElement('a');
+    //             link.href = blobUrl;
+    //             link.download = fileName;
+    //             document.body.appendChild(link);
+    //             link.click();
+    //             window.URL.revokeObjectURL(blobUrl);
+    //         }
+    //     )
+    // }
 
     //textBox adding function
     function addNewNode(){
@@ -1282,6 +1341,9 @@ export default function ProjectEditor(props){
                         <Row >
                             <Col md="auto">
                                 <Button variant="primary" onClick={addNewNode} >Add New Node</Button>
+                            </Col>
+                            <Col md="auto">
+                                <DownloadProject text="Download Project" variant="info" svg={svgFile} fileName={projectData.title}/>
                             </Col>
                             <Col md="auto">
                                 <Button variant="dark" onClick={saveProject} >Save</Button>

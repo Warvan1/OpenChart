@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useRef} from 'react';
+import React, {useState, useRef} from 'react';
 import { useUser } from '@auth0/nextjs-auth0/client';
 import { Button, Form, Modal, Container, Row } from 'react-bootstrap';
 import { useRouter } from 'next/router';
@@ -44,7 +44,7 @@ export default function CreateProject(props){
         <div>
             <Container>
                 <Row className="justify-content-md-center">
-                    <Button varient="primary" onClick={handleShow} style={{width: '12rem'}}>
+                    <Button variant="info" onClick={handleShow} style={{width: '12rem'}}>
                         Create Project
                     </Button>
                 </Row>

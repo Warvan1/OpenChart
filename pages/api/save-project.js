@@ -9,8 +9,8 @@ export default withApiAuthRequired(async function myApiRoute(request, response) 
   //create a connection to the MySQL database
   const connection = mysql.createConnection(mysqlConnection);
 
-  var sql = "update project set projectJSON = ? where id = ? and email = ?;"
-  connection.query(sql, [JSON.stringify(request.body), id, user.email], async function (error, results, fields) {
+  var sql = "update project set projectJSON = ?, projectSVG = ? where id = ? and email = ?;"
+  connection.query(sql, [JSON.stringify(request.body.projectJSON), JSON.stringify({svg: request.body.projectSVG}), id, user.email], async function (error, results, fields) {
     if (error) throw error;
   })
 

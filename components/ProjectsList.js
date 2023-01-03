@@ -1,6 +1,6 @@
 import React, {useState, useEffect} from 'react';
 import { useUser } from '@auth0/nextjs-auth0/client';
-import { Container } from 'react-bootstrap';
+import { Container, Row } from 'react-bootstrap';
 import ProjectsListCard from './ProjectsListCard';
 
 export default function ProjectsList(props){
@@ -27,9 +27,11 @@ export default function ProjectsList(props){
 
     return (
         <Container>
-            {projectData.results.map((project) => (
-                <ProjectsListCard project={project}/>
-            ))}
+            <Row className="justify-content-md-center">
+                {projectData.results.map((project) => (
+                    <ProjectsListCard project={project}/>
+                ))}
+            </Row>
         </Container>
     );
 }
