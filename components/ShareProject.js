@@ -1,8 +1,10 @@
-import React, {useState, useRef} from 'react';
+import React, {useState, createContext, useRef} from 'react';
 import { useUser } from '@auth0/nextjs-auth0/client';
 import { Button, Col, Container, Form, Modal, Row } from 'react-bootstrap';
 import { useRouter } from 'next/router';
 import ShareListEntry from './ShareListEntry';
+
+export const EditShareModalContext = createContext(null);
 
 export default function CreateProject(props){
     const {user, error, isLoading } = useUser();
@@ -97,12 +99,14 @@ export default function CreateProject(props){
                 </Modal.Header>
                 <Modal.Body>
                     {shareList != null && <Container>
-                        {shareList.results.length == 0 && <p>
-                            This project is shared with nobody.
-                        </p>}
-                        {shareList.results.map((entry) => (
-                            <ShareListEntry entry={entry} />
-                        ))}
+                        <EditShareModalContext.Provider value ={{setEditShow}}>
+                            {shareList.results.length == 0 && <p>
+                                This project is shared with nobody.
+                            </p>}
+                            {shareList.results.map((entry) => (
+                                <ShareListEntry entry={entry} />
+                            ))}
+                        </EditShareModalContext.Provider>
                     </Container>}
                 </Modal.Body>
                 <Modal.Footer>

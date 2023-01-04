@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { Row, Col, Button } from 'react-bootstrap';
+import { EditShareModalContext } from './ShareProject';
 
 export default function ShareListEntry(props){
+    const {setEditShow} = useContext(EditShareModalContext);
 
     function editShareListEntry(edit, id){
         //update on frontend
@@ -18,6 +20,7 @@ export default function ShareListEntry(props){
                 edit: edit,
             }),
         });
+        setEditShow(false);
     }
 
     function deleteShareListEntry(){
@@ -32,6 +35,7 @@ export default function ShareListEntry(props){
                 id: props.entry.id,
             }),
         });
+        setEditShow(false);
     }
 
     return (
