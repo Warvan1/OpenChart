@@ -39,6 +39,7 @@ export default function CreateProject(props){
         link.download = fileName;
         link.href = url;
         link.click();
+        setShow(false);
     }
 
     //download png of file
@@ -65,6 +66,7 @@ export default function CreateProject(props){
                 window.URL.revokeObjectURL(blobUrl);
             }
         )
+        setShow(false);
     }
 
     //handle user loading and error

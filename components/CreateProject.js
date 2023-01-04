@@ -20,7 +20,6 @@ export default function CreateProject(props){
 
     function handleCreate(){
         setShow(false);
-        console.log(titleInputRef.current.value);
 
         fetch(`/api/create-project`, {
             method: 'POST',
@@ -42,14 +41,7 @@ export default function CreateProject(props){
 
     return (
         <div>
-            <Container>
-                <Row className="justify-content-md-center">
-                    <Button variant="info" onClick={handleShow} style={{width: '12rem'}}>
-                        Create Project
-                    </Button>
-                </Row>
-            </Container>
-            
+            <Button variant="info" onClick={handleShow} style={{width: '12rem'}}>Create Project</Button>
 
             <Modal show={show} onHide={handleClose}>
                 <Modal.Header closeButton>

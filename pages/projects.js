@@ -3,6 +3,7 @@ import Head from 'next/head';
 import MainNavbar from '../components/MainNavBar';
 import ProjectsList from '../components/ProjectsList';
 import CreateProject from '../components/CreateProject';
+import { Button, Container, Row, Col} from 'react-bootstrap';
 
 export default function ProjectsPage({user}) {
   return (
@@ -13,7 +14,16 @@ export default function ProjectsPage({user}) {
         </Head>
         <MainNavbar projects={true} />
         <br />
-        <CreateProject />
+        <Container>
+          <Row className="justify-content-md-center">
+            <Col md="auto">
+              <CreateProject />
+            </Col>
+            <Col md="auto">
+              <Button variant="warning" href="/shared-with-me" style={{width: '12rem'}}>Shared With Me</Button>
+            </Col>
+          </Row>
+        </Container>
         <br />
         <ProjectsList />
     </div>

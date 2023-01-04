@@ -26,6 +26,8 @@ export default function ProjectEditor(props){
     const [updated, setUpdated] = useState(false);
     //used to update the since last save clock
     const [saveTimeUpdate, setSaveTimeUpdate] = useState({minutes: 0, seconds: 0});
+    //used to store the present view link
+    const [viewLink, setViewLink] = useState(null);
 
     //used to create a paper project to draw on the canvas
     function updateScreen(){
@@ -1137,6 +1139,7 @@ export default function ProjectEditor(props){
     }, [projectData])
     useEffect(() => {
         if(updated == true){
+            setViewLink(`/project-view-present/${props.id}`)
             updateScreen();
         }
     }, [updated])
@@ -1243,32 +1246,6 @@ export default function ProjectEditor(props){
         })
     }
 
-    // //download svg of file
-    // function downloadSVG(fileName){
-    //     var url = "data:image/svg+xml;utf8," + encodeURIComponent(svgFile);
-    //     const link = document.createElement("a");
-    //     link.download = fileName;
-    //     link.href = url;
-    //     link.click();
-    // }
-
-    // //download png of file
-    // function downloadPNG(fileName){
-    //     fetch(`/api/convert-to-png?data=${encodeURIComponent(svgFile)}`).then(
-    //         async (response) => {
-    //             //create an image object from the image returned form the backend
-    //             const blob = await response.blob();
-    //             const blobUrl = window.URL.createObjectURL(blob);
-    //             const link = document.createElement('a');
-    //             link.href = blobUrl;
-    //             link.download = fileName;
-    //             document.body.appendChild(link);
-    //             link.click();
-    //             window.URL.revokeObjectURL(blobUrl);
-    //         }
-    //     )
-    // }
-
     //textBox adding function
     function addNewNode(){
         //retrieve the currient backend projectData
@@ -1344,6 +1321,9 @@ export default function ProjectEditor(props){
                             </Col>
                             <Col md="auto">
                                 <DownloadProject text="Download Project" variant="info" svg={svgFile} fileName={projectData.title}/>
+                            </Col>
+                            <Col md="auto">
+                                <Button variant="success" href={viewLink} >Present View</Button>
                             </Col>
                             <Col md="auto">
                                 <Button variant="dark" onClick={saveProject} >Save</Button>

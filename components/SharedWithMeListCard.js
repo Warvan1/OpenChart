@@ -2,13 +2,13 @@ import { useRouter } from 'next/router';
 import React, {useState, useRef} from 'react';
 import { Card, Col, Button, Modal, Form } from 'react-bootstrap';
 import DownloadProject from './DownloadProject';
-import ShareProject from './ShareProject';
 
-export default function ProjectsListCard(props){
+export default function SharedWithMeListCard(props){
     const [show, setShow] = useState(false);
     const titleInputRef = useRef(null);
     const router = useRouter();
     var editLink = `/project-view/${props.project.id}`;
+    var viewLink = `/project-view-present/${props.project.id}`;
     
     function confirmDeleteShow(){
         setShow(true);
@@ -18,12 +18,21 @@ export default function ProjectsListCard(props){
         setShow(false);
     }
 
+    //removes the shared link entry
     function deleteProject(){
         if(props.project.title == titleInputRef.current.value){
             setShow(false);
-            fetch(`/api/delete-project?id=${props.project.id}`).then(
-                response => response.json()
-            ).then(() => {
+            //remove from shared table
+            console.log(props.project);
+            fetch(`/api/delete-share-list-entry`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    id: props.project.sharedID,
+                }),
+            }).then(() => {
                 router.reload(window.location.pathname);
             })
         }
@@ -32,16 +41,17 @@ export default function ProjectsListCard(props){
     return (
         <>
             <Col md="auto">
-                <Card className="text-white bg-dark mb-3 text-center">
+                <Card className="text-black bg-warning mb-3 text-center">
                     <Card.Body>
                         <Card.Title>{props.project.title}</Card.Title>
                         {props.project.projectSVG != null && <object data={"data:image/svg+xml;utf8," + encodeURIComponent(props.project.projectSVG.svg)} width="350" height="350"></object>}
                         {props.project.projectSVG == null && <object data="favicon.ico" width="350" height="350"></object>}
+                        <p>created by: {props.project.email}</p>
                         <Card.Footer>
-                            <Button variant="info" href={editLink}>Edit</Button>
+                            {props.project.edit == 1 && <Button variant="info" href={editLink}>Edit</Button>}
+                            {props.project.edit == 0 && <Button variant="dark" href={viewLink}>View</Button>}
                             {props.project.projectSVG != null && <DownloadProject text="Download" variant="success" svg={props.project.projectSVG.svg} fileName={props.project.title}/>}
-                            <ShareProject id={props.project.id}/>
-                            <Button variant="danger" onClick={confirmDeleteShow}>Delete</Button>
+                            <Button variant="danger" onClick={confirmDeleteShow}>Remove</Button>
                         </Card.Footer>
                     </Card.Body>
                 </Card>
@@ -54,7 +64,7 @@ export default function ProjectsListCard(props){
                 <Modal.Body>
                     <Form>
                         <Form.Group className="mb-3" controlId="exampleForm.ControlInput1" >
-                            <Form.Label>Type "{props.project.title}" To Delete</Form.Label>
+                            <Form.Label>Type "{props.project.title}" To Remove</Form.Label>
                             <Form.Control autoFocus ref={titleInputRef} maxLength={32}></Form.Control>
                         </Form.Group>
                     </Form>
@@ -64,7 +74,7 @@ export default function ProjectsListCard(props){
                         Exit
                     </Button>
                     <Button variant="danger" onClick={deleteProject}>
-                        Delete Forever
+                        Remove Shared Link
                     </Button>
                 </Modal.Footer>
             </Modal>

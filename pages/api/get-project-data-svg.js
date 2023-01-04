@@ -10,7 +10,7 @@ export default withApiAuthRequired(async function myApiRoute(request, response) 
   const connection = mysql.createConnection(mysqlConnection);
 
   //use the user object username with the ID to provide authorization for the project
-  var sql = "select id, title, projectJSON from project where id = ? and email = ?;";
+  var sql = "select id, title, projectSVG from project where id = ? and email = ?;";
   var results = await connection.promise().query(sql, [id, user.email], async function (error, results, fields) {
     if (error) throw error;
   });
@@ -19,8 +19,8 @@ export default withApiAuthRequired(async function myApiRoute(request, response) 
     response.json({"results": results[0]});
   }
   else{
-    //check if user has shared edit access
-    sql = "select edit from shared where projectID = ? and email = ? and edit = 1"
+    //check if user has shared access
+    sql = "select edit from shared where projectID = ? and email = ?"
     results = await connection.promise().query(sql, [id, user.email], async function (error, results, fields) {
       if (error) throw error;
     });
@@ -28,7 +28,7 @@ export default withApiAuthRequired(async function myApiRoute(request, response) 
     // if they have shared edit access
     if(results[0].length == 1){
       //get project data
-      sql = "select id, title, projectJSON from project where id = ?;";
+      sql = "select id, title, projectSVG from project where id = ?;";
       results = await connection.promise().query(sql, [id, user.email], async function (error, results, fields) {
         if (error) throw error;
       });
