@@ -6,10 +6,9 @@ import ShareListEntry from './ShareListEntry';
 
 export const EditShareModalContext = createContext(null);
 
-export default function CreateProject(props){
+export default function ShareProject(props){
     const {user, error, isLoading } = useUser();
     const [show, setShow] = useState(false);
-    const [editShow, setEditShow] = useState(false);
     const [shareList, setShareList] = useState(null);
     const router = useRouter();
     //handle user Input
@@ -17,6 +16,13 @@ export default function CreateProject(props){
     const userEditPermissionRef = useRef(null);
 
     function handleShow(){
+        fetch(`/api/get-shared-list?id=${props.id}`).then(
+            response => response.json()
+        ).then(
+            data => {
+                setShareList(data);
+            }
+        )
         setShow(true);
     }
 
@@ -38,23 +44,6 @@ export default function CreateProject(props){
             })
         })
         setShow(false);
-    }
-
-    function editShareShow(){
-        setShow(false);
-        //get the share list
-        fetch(`/api/get-shared-list?id=${props.id}`).then(
-            response => response.json()
-        ).then(
-            data => {
-                setShareList(data);
-            }
-        )
-        setEditShow(true);
-    }
-    
-    function editShareClose(){
-        setEditShow(false);
     }
 
     //handle user loading and error
@@ -79,40 +68,35 @@ export default function CreateProject(props){
                             <Form.Check type="checkbox" ref={userEditPermissionRef} label="Provide Edit Permission" />
                         </Form.Group>
                     </Form>
+                    <Container>
+                        <Row className="d-flex flex-row-reverse">
+                            <Col md="auto">
+                                <Button variant="secondary" onClick={handleClose}>
+                                    Exit
+                                </Button>
+                            </Col>
+                            <Col md="auto">
+                                <Button variant="warning" onClick={share}>
+                                    Share
+                                </Button>
+                            </Col>
+                        </Row>
+                    </Container>
                 </Modal.Body>
                 <Modal.Footer>
-                    <Button variant="secondary" onClick={handleClose}>
-                        Exit
-                    </Button>
-                    <Button variant="info" onClick={editShareShow}>
-                        Edit Share Permissions
-                    </Button>
-                    <Button variant="warning" onClick={share}>
-                        Share
-                    </Button>
-                </Modal.Footer>
-            </Modal>
-
-            <Modal show={editShow} onHide={editShareClose}>
-                <Modal.Header closeButton>
-                    <Modal.Title>Update Share Permissions</Modal.Title>
-                </Modal.Header>
-                <Modal.Body>
                     {shareList != null && <Container>
-                        <EditShareModalContext.Provider value ={{setEditShow}}>
+                        <EditShareModalContext.Provider value ={{setShow}}>
                             {shareList.results.length == 0 && <p>
-                                This project is shared with nobody.
+                                This project is curriently shared with nobody.
+                            </p>}
+                            {shareList.results.length != 0 && <p>
+                                People already shared with.
                             </p>}
                             {shareList.results.map((entry) => (
                                 <ShareListEntry entry={entry} />
                             ))}
                         </EditShareModalContext.Provider>
                     </Container>}
-                </Modal.Body>
-                <Modal.Footer>
-                    <Button variant="secondary" onClick={editShareClose}>
-                        Exit
-                    </Button>
                 </Modal.Footer>
             </Modal>
         </>

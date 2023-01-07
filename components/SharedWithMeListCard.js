@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { useRouter } from 'next/router';
 import React, {useState, useRef} from 'react';
 import { Card, Col, Button, Modal, Form } from 'react-bootstrap';
@@ -44,12 +45,12 @@ export default function SharedWithMeListCard(props){
                 <Card className="text-black bg-warning mb-3 text-center">
                     <Card.Body>
                         <Card.Title>{props.project.title}</Card.Title>
-                        {props.project.projectSVG != null && <object data={"data:image/svg+xml;utf8," + encodeURIComponent(props.project.projectSVG.svg)} width="350" height="350"></object>}
-                        {props.project.projectSVG == null && <object data="favicon.ico" width="350" height="350"></object>}
+                        {props.project.edit == 1 &&<>{props.project.projectSVG != null && <Link href={editLink}><img src={"data:image/svg+xml;utf8," + encodeURIComponent(props.project.projectSVG.svg)} width="350" height="350"></img></Link>}
+                        {props.project.projectSVG == null && <Link href={editLink}><img src="favicon.ico" width="350" height="350"></img></Link>}</>}
+                        {props.project.edit == 0 &&<>{props.project.projectSVG != null && <Link href={viewLink}><img src={"data:image/svg+xml;utf8," + encodeURIComponent(props.project.projectSVG.svg)} width="350" height="350"></img></Link>}
+                        {props.project.projectSVG == null && <Link href={viewLink}><img src="favicon.ico" width="350" height="350"></img></Link>}</>}
                         <p>created by: {props.project.email}</p>
-                        <Card.Footer>
-                            {props.project.edit == 1 && <Button variant="info" href={editLink}>Edit</Button>}
-                            {props.project.edit == 0 && <Button variant="dark" href={viewLink}>View</Button>}
+                        <Card.Footer className="card-footer text-muted bg-transparent px-0">
                             {props.project.projectSVG != null && <DownloadProject text="Download" variant="success" svg={props.project.projectSVG.svg} fileName={props.project.title}/>}
                             <Button variant="danger" onClick={confirmDeleteShow}>Remove</Button>
                         </Card.Footer>

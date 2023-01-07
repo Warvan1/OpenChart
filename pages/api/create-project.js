@@ -10,12 +10,22 @@ export default withApiAuthRequired(async function myApiRoute(request, response) 
   const connection = mysql.createConnection(mysqlConnection);
   
   const title = request.body.title;
+  const projectJSON = request.body.projectJSON;
+  const projectSVG = request.body.projectSVG;
 
-  var sql = "insert into project(email, title, projectJSON) values(?, ?, ?);";
-  connection.query(sql, [user.email, title, JSON.stringify(defaultProject)], async function (error, results, fields) {
-    if (error) throw error;
-  })
-  response.send({ success: true })
-
+  if(projectJSON != null){
+    var sql = "insert into project(email, title, projectJSON, projectSVG) values(?, ?, ?, ?);";
+    connection.query(sql, [user.email, title, JSON.stringify(projectJSON), JSON.stringify(projectSVG)], async function (error, results, fields) {
+      if (error) throw error;
+    })
+    response.send({ success: true })
+  }
+  else{
+    var sql = "insert into project(email, title, projectJSON) values(?, ?, ?);";
+    connection.query(sql, [user.email, title, JSON.stringify(defaultProject)], async function (error, results, fields) {
+      if (error) throw error;
+    })
+    response.send({ success: true })
+  }
   connection.end();
 });

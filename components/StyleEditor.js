@@ -308,7 +308,7 @@ export default function StyleEditor(props){
                     </Row>
                     <Row>
                         <Col md={5}>
-                            <Button variant="secondary" onClick={updateStrokeColor}>Stroke</Button>
+                            <Button variant="secondary" onClick={updateStrokeColor}>Border</Button>
                         </Col>
                         <Col md={3}>
                             <Button variant="secondary" onClick={updateStrokeColor} style={{backgroundColor: tempStyles.pathData.strokeColor}}><SquareIcon /></Button>
@@ -332,7 +332,7 @@ export default function StyleEditor(props){
                     </Row>
                     <Row>
                         <Col md={7}>
-                            <Button variant="secondary">Stroke Width</Button>
+                            <Button variant="secondary">Border Width</Button>
                         </Col>
                         <Col md={5}>
                             <Form>

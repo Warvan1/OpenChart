@@ -38,6 +38,9 @@ export default function ProjectEditor(props){
         //set the view size
         paper.view.viewSize = [1000, 1000];
 
+        //used to keep track if the mouse is inside the canvas
+        var insideObject = false;
+
         //keep track of if an item is focused
         var focused = null;
         //keep track of the render order for use when saving to database.
@@ -128,6 +131,19 @@ export default function ProjectEditor(props){
             });
         }
 
+        function updateStyles(){
+            if(focused != null){
+                pathObjects[focused].object.strokeColor = styles.pathData.strokeColor;
+                pathObjects[focused].object.strokeWidth = styles.pathData.strokeWidth;
+                pathObjects[focused].object.fillColor = styles.pathData.fillColor;
+                
+                if(pathObjects[focused].type.startsWith("text-")){
+                    pathObjects[focused].textObject.fillColor = styles.textData.fillColor;
+                    pathObjects[focused].textObject.fontSize = styles.textData.fontSize;
+                }
+            }
+        }
+
         //focusHighlighting objects
         var highlightObject1 = {center: [0,0], radius: 5, fillColor: [0.2,0.8,0.8]};
         var highlightObject2 = {center: [0,0], radius: 5, fillColor: [0,1,0.2]};
@@ -142,6 +158,16 @@ export default function ProjectEditor(props){
         var lineHighlightObjectEnds = {center: [0,0], radius: 5, fillColor: [1,0,0]};
         var lineHighlightObjectJoints = {center: [0,0], radius: 5, fillColor: [0.5,0,1]};
         var lineHighlight = [];
+
+        var linehandleHighlightObject = {center: [0,0], radius: 5, fillColor: [1,0.56,0]}
+        var lineHandleTopLeft = new paper.Path.Circle(linehandleHighlightObject);
+        var lineHandleTopRight = new paper.Path.Circle(linehandleHighlightObject);
+        var lineHandleBottomLeft = new paper.Path.Circle(linehandleHighlightObject);
+        var lineHandleBottomRight = new paper.Path.Circle(linehandleHighlightObject);
+        var lineHandleLeftCenter = new paper.Path.Circle(linehandleHighlightObject);
+        var lineHandleRightCenter = new paper.Path.Circle(linehandleHighlightObject);
+        var lineHandleTopCenter = new paper.Path.Circle(linehandleHighlightObject);
+        var lineHandleBottomCenter = new paper.Path.Circle(linehandleHighlightObject);
 
         //reduce the projectData.objects to paper path objects
         //create array of path objects
@@ -287,7 +313,20 @@ export default function ProjectEditor(props){
                 updateLineEnds(data.index);
             }
 
+            data.object.onMouseEnter = function(event){
+                //sets inside object variable
+                insideObject = true;
+            }
+
+            data.object.onDoubleClick = function(event){
+                updateStyles();
+            }
+
             data.object.onMouseDown = function(event){
+                //handle textObject focusing
+                if(focused != null && pathObjects[focused].textObject != undefined){
+                    pathObjects[focused].textObject.selected = false;
+                }
                 //calculate the click offset between where we click and the object position
                 clickOffset = {x: event.point.x - data.object.position.x, y: event.point.y - data.object.position.y};
 
@@ -301,11 +340,14 @@ export default function ProjectEditor(props){
                 //clear the lingHightlight array
                 clearLineHighlight();
                 //move the selected object to the forground (only visual)
-                this.project.activeLayer.addChild(data.object);
-                //make sure the text inside text objects is on top of the object background
-                if(data.type.startsWith("text-")){
-                    this.project.activeLayer.addChild(data.textObject);
-                }
+                try{
+                    this.project.activeLayer.addChild(data.object);  
+                
+                    //make sure the text inside text objects is on top of the object background
+                    if(data.type.startsWith("text-")){
+                        this.project.activeLayer.addChild(data.textObject);
+                    }
+                }catch{}
                 //handle keeping track of the render order for the backend
                 renderOrder.push(renderOrder.splice(renderOrder.indexOf(data.index), 1)[0]);
                 setRenderOrderReact(renderOrder);
@@ -314,6 +356,11 @@ export default function ProjectEditor(props){
             //handle text object events
             if(data.type.startsWith("text-")){
                 data.textObject.onMouseDown = function(event){
+                    //handle textObject focusing
+                    if(focused != null && pathObjects[focused].textObject != undefined){
+                        pathObjects[focused].textObject.selected = false;
+                    }
+
                     //set the object as the focused object
                     focused = data.index;
                     //unfocus from any lines when we focus on an item
@@ -334,6 +381,7 @@ export default function ProjectEditor(props){
                         data.textInputOffset = 0;
                     }
                     //set the textInputMode to true since we clicked on a text Input object
+                    data.textObject.selected = true;
                     textInputMode = true;
                     
                     //handle object ordering frontend and backend and text
@@ -395,52 +443,99 @@ export default function ProjectEditor(props){
 
         //handle events for a specific line object
         function lineObjectEvents(data){
-
-            data.line.onMouseDown = function(event){
-                //unfocus from any path objects
-                focused = null;
-                //set textInputMode to false since we clicked on a non text input object
-                textInputMode = false;
-
-                if(lineFocused != data.index){
-                    //set lineFocus = to the index key of the line
-                    lineFocused = data.index; 
-                    //clear the lingHightlight array
-                    clearLineHighlight();
-                    //populate the lineHighlight array with lineHightlight Objects
-                    for(var i = 0; i < data.line.segments.length; i++){
-                        var segment = data.line.segments[i];
-                        //create a new instace and place it on a line joint
-                        var lineHighlightObject = {};
-                        var eventType = null;
-                        if(i == 0 || i == data.line.segments.length-1){
-                            lineHighlightObject = lineHighlightObjectEnds;
-                            eventType = "end";
-                        }
-                        else{
-                            lineHighlightObject = lineHighlightObjectJoints;
-                            eventType = "joint";
-                        }
-                        lineHighlightObject.center = [segment.point.x, segment.point.y];
-                        var lineHighlightInstance = new paper.Path.Circle(lineHighlightObject);
-                        //add instance to array for storage
-                        lineHighlight.push(lineHighlightInstance);
-                        //handle events from the instance
-                        LineHighlightEvents(lineHighlightInstance, data.line, eventType, i);
-                    }
-                }
+            //events for line objects
+            data.line.onMouseEnter = function(event){
+                lineObjectEnter(event, data);
             }
 
+            data.line.onDoubleClick = function(event){
+                lineObjectDoubleClick(event, data);
+            }
+
+            data.line.onMouseDown = function(event){
+                lineObjectDown(event, data);
+            }
+
+            //same events for arrow heads
+            data.arrow.onMouseEnter = function(event){
+                lineObjectEnter(event, data);
+            }
+
+            data.arrow.onDoubleClick = function(event){
+                lineObjectDoubleClick(event, data);
+            }
+
+            data.arrow.onMouseDown = function(event){
+                lineObjectDown(event, data);
+            }
         }
 
+        function lineObjectEnter(event, data){
+            //sets inside object variable
+            insideObject = true;
+        }
+
+        function lineObjectDoubleClick(event, data){
+            if(lineFocused != null){
+                data.line.style.strokeWidth = styles.lineData.strokeWidth;
+                data.arrow.remove();
+                data.arrow = createArrow(data.line);
+                data.line.style.strokeColor = styles.lineData.strokeColor;
+                data.arrow.style.fillColor = styles.lineData.strokeColor;
+                data.arrow.style.strokeColor = styles.lineData.strokeColor;
+            }
+        }
+
+        function lineObjectDown(event, data){
+            //handle textObject focusing
+            if(focused != null && pathObjects[focused].textObject != undefined){
+                pathObjects[focused].textObject.selected = false;
+            }
+            
+            //unfocus from any path objects
+            focused = null;
+            //set textInputMode to false since we clicked on a non text input object
+            textInputMode = false;
+
+            if(lineFocused != data.index){
+                //set lineFocus = to the index key of the line
+                lineFocused = data.index; 
+                //clear the lingHightlight array
+                clearLineHighlight();
+                //populate the lineHighlight array with lineHightlight Objects
+                for(var i = 0; i < data.line.segments.length; i++){
+                    var segment = data.line.segments[i];
+                    //create a new instace and place it on a line joint
+                    var lineHighlightObject = {};
+                    var eventType = null;
+                    if(i == 0 || i == data.line.segments.length-1){
+                        lineHighlightObject = lineHighlightObjectEnds;
+                        eventType = "end";
+                    }
+                    else{
+                        lineHighlightObject = lineHighlightObjectJoints;
+                        eventType = "joint";
+                    }
+                    lineHighlightObject.center = [segment.point.x, segment.point.y];
+                    var lineHighlightInstance = new paper.Path.Circle(lineHighlightObject);
+                    //add instance to array for storage
+                    lineHighlight.push(lineHighlightInstance);
+                    //handle events from the instance
+                    LineHighlightEvents(lineHighlightInstance, data, eventType, i);
+                }
+            }
+        }
+
+
         //handle line lightlight events
-        function LineHighlightEvents(instance, line, eventType, i){
+        function LineHighlightEvents(instance, data, eventType, i){
             
             instance.onMouseDrag = function(event){
                 //handle joint moving
                 if(eventType == "joint"){
-                    line.segments[i].point = event.point;
+                    data.line.segments[i].point = event.point;
                     instance.position = event.point;
+                    updateLineEnds(data.endObjectIndex);
                 }
             }
         }
@@ -456,11 +551,11 @@ export default function ProjectEditor(props){
         }
 
         //used to create a line object and control line object manipulation
-        function lineDraw(event, handle){
+        function lineDraw(point, handle){
             //start a line
             if(lineBeingMade == null){
                 var line = new paper.Path({
-                    segments: [[event.point.x, event.point.y]],
+                    segments: [[point.x, point.y]],
                     strokeWidth: styles.lineData.strokeWidth,
                     strokeColor: styles.lineData.strokeColor,
                     strokeCap: "round",
@@ -481,12 +576,18 @@ export default function ProjectEditor(props){
                 //add the line to pathObjects[focused] connected lines
                 pathObjects[focused].linesConnected.push({index: lineBeingMade, side: "start", handle: handle});
 
+                //adjust linehandle colors
+                lineHandleColorChange([0.5,0,1]);
             }
             //end a line
             else{
                 //make sure we dont start and stop on the same object
                 lineObjects.forEach((line) => {
                     if(line.index == lineBeingMade && line.startObjectIndex != focused){
+
+                        //adjust linehandle colors
+                        lineHandleColorChange([1,0.56,0]);
+
                         //create a new object with the same data as the old one but with the last segment
                         //we do this so that lineEvents work correctly.
                         //create a new array of segments
@@ -494,7 +595,7 @@ export default function ProjectEditor(props){
                         line.line.segments.forEach((segment) => {
                             segments.push([segment.point.x, segment.point.y]);
                         })
-                        segments.push([event.point.x, event.point.y]);
+                        segments.push([point.x, point.y]);
 
                         //create a new lineObject based on the old one but with the new segments and endObject data
                         var tempLine = new paper.Path({
@@ -586,21 +687,30 @@ export default function ProjectEditor(props){
         //handle clicking on the background
         background.onMouseDown = function(event){
             //handle line object middle corners
-            if(lineBeingMade != null && event.modifiers.shift == true){
+            if(lineBeingMade != null){
                 lineObjects.forEach((line) => {
                     if(line.index == lineBeingMade){
                         line.line.segments.push(new Segment(event.point.x, event.point.y));
                     }
                 })
             }
-            focused = null;
             //make sure that textInput is set to false when we click on the background
             textInputMode = false;
+            if(focused != null && pathObjects[focused].textObject != undefined){
+                pathObjects[focused].textObject.selected = false;
+            }
+            focused = null;
+            
 
             //unfocus from any lines when we focus on an item
             lineFocused = null;
             //clear the lingHightlight array
             clearLineHighlight();
+        }
+
+        background.onMouseEnter = function(event){
+            insideObject = false;
+            event.stopPropagation()
         }
 
         //resizing an object using the focus circles.
@@ -611,15 +721,10 @@ export default function ProjectEditor(props){
         var topLeftStart = null;
         
         topLeft.onMouseDown = function(event) {
-            if(event.modifiers.control == true){
-                lineDraw(event, "topLeft");
-            }
-            else{
-                //initialize our scale loop with starting values
-                startWidth = pathObjects[focused].object.bounds.size.width;
-                startHeight = pathObjects[focused].object.bounds.size.height;
-                topLeftStart = pathObjects[focused].object.bounds.topLeft;
-            }
+            //initialize our scale loop with starting values
+            startWidth = pathObjects[focused].object.bounds.size.width;
+            startHeight = pathObjects[focused].object.bounds.size.height;
+            topLeftStart = pathObjects[focused].object.bounds.topLeft;
         }
 
         topLeft.onMouseDrag = function(event){
@@ -653,15 +758,10 @@ export default function ProjectEditor(props){
         var topRightStart = null;
         
         topRight.onMouseDown = function(event) {
-            if(event.modifiers.control == true){
-                lineDraw(event, "topRight");
-            }
-            else{
-                //initialize our scale loop with starting values
-                startWidth = pathObjects[focused].object.bounds.size.width;
-                startHeight = pathObjects[focused].object.bounds.size.height;
-                topRightStart = pathObjects[focused].object.bounds.topRight;
-            }
+            //initialize our scale loop with starting values
+            startWidth = pathObjects[focused].object.bounds.size.width;
+            startHeight = pathObjects[focused].object.bounds.size.height;
+            topRightStart = pathObjects[focused].object.bounds.topRight;
         }
 
         topRight.onMouseDrag = function(event){
@@ -695,15 +795,10 @@ export default function ProjectEditor(props){
         var bottomLeftStart = null;
         
         bottomLeft.onMouseDown = function(event) {
-            if(event.modifiers.control == true){
-                lineDraw(event, "bottomLeft");
-            }
-            else{
-                //initialize our scale loop with starting values
-                startWidth = pathObjects[focused].object.bounds.size.width;
-                startHeight = pathObjects[focused].object.bounds.size.height;
-                bottomLeftStart = pathObjects[focused].object.bounds.bottomLeft;
-            }
+            //initialize our scale loop with starting values
+            startWidth = pathObjects[focused].object.bounds.size.width;
+            startHeight = pathObjects[focused].object.bounds.size.height;
+            bottomLeftStart = pathObjects[focused].object.bounds.bottomLeft;
         }
 
         bottomLeft.onMouseDrag = function(event){
@@ -737,15 +832,10 @@ export default function ProjectEditor(props){
         var bottomRightStart = null;
         
         bottomRight.onMouseDown = function(event) {
-            if(event.modifiers.control == true){
-                lineDraw(event, "bottomRight");
-            }
-            else{
-                //initialize our scale loop with starting values
-                startWidth = pathObjects[focused].object.bounds.size.width;
-                startHeight = pathObjects[focused].object.bounds.size.height;
-                bottomRightStart = pathObjects[focused].object.bounds.bottomRight;
-            }
+            //initialize our scale loop with starting values
+            startWidth = pathObjects[focused].object.bounds.size.width;
+            startHeight = pathObjects[focused].object.bounds.size.height;
+            bottomRightStart = pathObjects[focused].object.bounds.bottomRight;
         }
 
         bottomRight.onMouseDrag = function(event){
@@ -779,13 +869,8 @@ export default function ProjectEditor(props){
         var leftCenterStart = null;
 
         leftCenter.onMouseDown = function(event) {
-            if(event.modifiers.control == true){
-                lineDraw(event, "leftCenter");
-            }
-            else{
-                startWidth = pathObjects[focused].object.bounds.size.width;
-                leftCenterStart = pathObjects[focused].object.bounds.leftCenter;
-            }
+            startWidth = pathObjects[focused].object.bounds.size.width;
+            leftCenterStart = pathObjects[focused].object.bounds.leftCenter;
         }
 
         leftCenter.onMouseDrag = function(event){
@@ -809,13 +894,8 @@ export default function ProjectEditor(props){
         var rightCenterStart = null;
 
         rightCenter.onMouseDown = function(event) {
-            if(event.modifiers.control == true){
-                lineDraw(event, "rightCenter");
-            }
-            else{
-                startWidth = pathObjects[focused].object.bounds.size.width;
-                rightCenterStart = pathObjects[focused].object.bounds.rightCenter;
-            }
+            startWidth = pathObjects[focused].object.bounds.size.width;
+            rightCenterStart = pathObjects[focused].object.bounds.rightCenter;
         }
 
         rightCenter.onMouseDrag = function(event){
@@ -839,13 +919,8 @@ export default function ProjectEditor(props){
         var topCenterStart = null;
 
         topCenter.onMouseDown = function(event) {
-            if(event.modifiers.control == true){
-                lineDraw(event, "topCenter");
-            }
-            else{
-                startHeight = pathObjects[focused].object.bounds.size.height;
-                topCenterStart = pathObjects[focused].object.bounds.topCenter;
-            }
+            startHeight = pathObjects[focused].object.bounds.size.height;
+            topCenterStart = pathObjects[focused].object.bounds.topCenter;
         }
 
         topCenter.onMouseDrag = function(event){
@@ -869,13 +944,8 @@ export default function ProjectEditor(props){
         var bottomCenterStart = null;
 
         bottomCenter.onMouseDown = function(event) {
-            if(event.modifiers.control == true){
-                lineDraw(event, "bottomCenter");
-            }
-            else{
-                startHeight = pathObjects[focused].object.bounds.size.height;
-                bottomCenterStart = pathObjects[focused].object.bounds.bottomCenter;
-            }
+            startHeight = pathObjects[focused].object.bounds.size.height;
+            bottomCenterStart = pathObjects[focused].object.bounds.bottomCenter;
         }
 
         bottomCenter.onMouseDrag = function(event){
@@ -893,6 +963,49 @@ export default function ProjectEditor(props){
                 }
                 updateLineEnds(focused);
             }
+        }
+
+        lineHandleTopLeft.onMouseDown = function(event) {
+            lineDraw(topLeft.position, "topLeft");
+        }
+
+        lineHandleTopRight.onMouseDown = function(event) {
+            lineDraw(topRight.position, "topRight");
+        }
+
+        lineHandleBottomLeft.onMouseDown = function(event) {
+            lineDraw(bottomLeft.position, "bottomLeft");
+        }
+
+        lineHandleBottomRight.onMouseDown = function(event) {
+            lineDraw(bottomRight.position, "bottomRight");
+        }
+
+        lineHandleLeftCenter.onMouseDown = function(event) {
+            lineDraw(leftCenter.position, "leftCenter");
+        }
+
+        lineHandleRightCenter.onMouseDown = function(event) {
+            lineDraw(rightCenter.position, "rightCenter");
+        }
+
+        lineHandleTopCenter.onMouseDown = function(event) {
+            lineDraw(topCenter.position, "topCenter");
+        }
+
+        lineHandleBottomCenter.onMouseDown = function(event) {
+            lineDraw(bottomCenter.position, "bottomCenter");
+        }
+
+        function lineHandleColorChange(color){
+            lineHandleTopLeft.fillColor = color;
+            lineHandleTopRight.fillColor = color;
+            lineHandleBottomLeft.fillColor = color;
+            lineHandleBottomRight.fillColor = color;
+            lineHandleLeftCenter.fillColor = color;
+            lineHandleRightCenter.fillColor = color;
+            lineHandleTopCenter.fillColor = color;
+            lineHandleBottomCenter.fillColor = color;
         }
 
         //handle keyboard events
@@ -955,7 +1068,7 @@ export default function ProjectEditor(props){
             else{
                 //handle key presses when outside of textInputMode
                 //handle deleting objects when backspace key pressed
-                if(event.key == "backspace"){
+                if(event.key == "backspace" && insideObject){
                     //handle pathObject deletion
                     if(pathObjects[focused] != undefined){
                         pathObjects[focused].object.remove();
@@ -992,14 +1105,17 @@ export default function ProjectEditor(props){
                         })
                     }
                 }
-                if((event.key == "c" && Key.modifiers.control) || (event.key == "c" && Key.modifiers.shift)){
+                if(event.key == "u" && insideObject && focused != null){
+                    updateStyles();
+                }
+                if((event.key == "c" && Key.modifiers.control) || (event.key == "c" && Key.modifiers.command)){
                     if(focused != null){
                         //save focused index for later printing
                         pathCopyIndex = focused;
                         pathCopyPosition = pathObjects[focused].object.position;
                     }
                 }
-                if((event.key == "v" && Key.modifiers.control) || (event.key == "v" && Key.modifiers.shift)){
+                if((event.key == "v" && Key.modifiers.control) || (event.key == "v" && Key.modifiers.command)){
                     //clone paper objects
                     var object = {};
                     var pathObject = pathObjects[pathCopyIndex].object.clone();
@@ -1026,7 +1142,7 @@ export default function ProjectEditor(props){
             }
             
         }
-        
+
         //runs every animation frame
         paper.view.onFrame = function(event){
             //handle focus highlighting
@@ -1040,6 +1156,15 @@ export default function ProjectEditor(props){
                 rightCenter.visible = false;
                 topCenter.visible = false;
                 bottomCenter.visible = false;
+
+                lineHandleTopLeft.visible = false;
+                lineHandleTopRight.visible = false;
+                lineHandleBottomLeft.visible = false;
+                lineHandleBottomRight.visible = false;
+                lineHandleLeftCenter.visible = false;
+                lineHandleRightCenter.visible = false;
+                lineHandleTopCenter.visible = false;
+                lineHandleBottomCenter.visible = false;
             }
             //move the highlicht items to the corners of the highlighted items bounds
             //and make them visible again
@@ -1068,6 +1193,47 @@ export default function ProjectEditor(props){
                 bottomCenter.visible = true;
                 paper.project.activeLayer.addChild(bottomCenter);
                 bottomCenter.position = pathObjects[focused].object.bounds.bottomCenter;
+                
+                lineHandleTopLeft.visible = true;
+                paper.project.activeLayer.addChild(lineHandleTopLeft);
+                lineHandleTopLeft.position.x = pathObjects[focused].object.bounds.topLeft.x - 7.1;
+                lineHandleTopLeft.position.y = pathObjects[focused].object.bounds.topLeft.y - 7.1;
+
+                lineHandleTopRight.visible = true;
+                paper.project.activeLayer.addChild(lineHandleTopRight);
+                lineHandleTopRight.position.x = pathObjects[focused].object.bounds.topRight.x + 7.1;
+                lineHandleTopRight.position.y = pathObjects[focused].object.bounds.topRight.y - 7.1;
+
+                lineHandleBottomLeft.visible = true;
+                paper.project.activeLayer.addChild(lineHandleBottomLeft);
+                lineHandleBottomLeft.position.x = pathObjects[focused].object.bounds.bottomLeft.x - 7.1;
+                lineHandleBottomLeft.position.y = pathObjects[focused].object.bounds.bottomLeft.y + 7.1;
+
+                lineHandleBottomRight.visible = true;
+                paper.project.activeLayer.addChild(lineHandleBottomRight);
+                lineHandleBottomRight.position.x = pathObjects[focused].object.bounds.bottomRight.x + 7.1;
+                lineHandleBottomRight.position.y = pathObjects[focused].object.bounds.bottomRight.y + 7.1;
+
+                lineHandleLeftCenter.visible = true;
+                paper.project.activeLayer.addChild(lineHandleLeftCenter);
+                lineHandleLeftCenter.position.x = pathObjects[focused].object.bounds.leftCenter.x - 10;
+                lineHandleLeftCenter.position.y = pathObjects[focused].object.bounds.leftCenter.y;
+
+                lineHandleRightCenter.visible = true;
+                paper.project.activeLayer.addChild(lineHandleRightCenter);
+                lineHandleRightCenter.position.x = pathObjects[focused].object.bounds.rightCenter.x + 10;
+                lineHandleRightCenter.position.y = pathObjects[focused].object.bounds.rightCenter.y;
+
+                lineHandleTopCenter.visible = true;
+                paper.project.activeLayer.addChild(lineHandleTopCenter);
+                lineHandleTopCenter.position.x = pathObjects[focused].object.bounds.topCenter.x;
+                lineHandleTopCenter.position.y = pathObjects[focused].object.bounds.topCenter.y - 10;
+
+                lineHandleBottomCenter.visible = true;
+                paper.project.activeLayer.addChild(lineHandleBottomCenter);
+                lineHandleBottomCenter.position.x = pathObjects[focused].object.bounds.bottomCenter.x;
+                lineHandleBottomCenter.position.y = pathObjects[focused].object.bounds.bottomCenter.y + 10;
+
             }
 
             //make handles more transparent when editing test mode
@@ -1294,7 +1460,7 @@ export default function ProjectEditor(props){
         return function cleanup() {
             clearInterval(timerId);
         }
-    }, [saveTimeUpdate, saveTime])
+    }, [saveTimeUpdate, saveTime]);
 
     if (isLoading) return <div>Loading...</div>;
     if (error) return <div>{error.message}</div>;

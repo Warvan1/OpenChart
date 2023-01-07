@@ -20,6 +20,7 @@ export default function CreateProject(props){
 
     function handleCreate(){
         setShow(false);
+        console.log(props.projectJSON)
 
         fetch(`/api/create-project`, {
             method: 'POST',
@@ -28,6 +29,8 @@ export default function CreateProject(props){
             },
             body: JSON.stringify({
                 title: titleInputRef.current.value,
+                projectJSON: props.projectJSON,
+                projectSVG: props.projectSVG,
             })
         }).then(() => {
             router.reload(window.location.pathname);
@@ -40,8 +43,9 @@ export default function CreateProject(props){
     if (error) return <div>{error.message}</div>;
 
     return (
-        <div>
-            <Button variant="info" onClick={handleShow} style={{width: '12rem'}}>Create Project</Button>
+        <>
+            {props.text == null && <Button variant="info" onClick={handleShow} style={{width: '12rem'}}>Create Project</Button>}
+            {props.text != null && <Button variant="info" onClick={handleShow} >{props.text}</Button>}
 
             <Modal show={show} onHide={handleClose}>
                 <Modal.Header closeButton>
@@ -51,7 +55,8 @@ export default function CreateProject(props){
                     <Form>
                         <Form.Group className="mb-3" controlId="exampleForm.ControlInput1" >
                             <Form.Label>Project Title</Form.Label>
-                            <Form.Control autoFocus ref={titleInputRef} maxLength={32}></Form.Control>
+                            {props.title == null && <Form.Control autoFocus ref={titleInputRef} maxLength={32}></Form.Control>}
+                            {props.title != null && <Form.Control autoFocus ref={titleInputRef} maxLength={32} defaultValue={props.title}></Form.Control>}
                         </Form.Group>
                     </Form>
                 </Modal.Body>
@@ -64,6 +69,6 @@ export default function CreateProject(props){
                     </Button>
                 </Modal.Footer>
             </Modal>
-        </div>
+        </>
     );
 }

@@ -1,6 +1,8 @@
+import Link from 'next/link';
 import { useRouter } from 'next/router';
-import React, {useState, useRef} from 'react';
+import React, {useState, useRef, useEffect} from 'react';
 import { Card, Col, Button, Modal, Form } from 'react-bootstrap';
+import CreateProject from './CreateProject';
 import DownloadProject from './DownloadProject';
 import ShareProject from './ShareProject';
 
@@ -35,11 +37,11 @@ export default function ProjectsListCard(props){
                 <Card className="text-white bg-dark mb-3 text-center">
                     <Card.Body>
                         <Card.Title>{props.project.title}</Card.Title>
-                        {props.project.projectSVG != null && <object data={"data:image/svg+xml;utf8," + encodeURIComponent(props.project.projectSVG.svg)} width="350" height="350"></object>}
-                        {props.project.projectSVG == null && <object data="favicon.ico" width="350" height="350"></object>}
-                        <Card.Footer>
-                            <Button variant="info" href={editLink}>Edit</Button>
+                        {props.project.projectSVG != null && <Link href={editLink}><img src={"data:image/svg+xml;utf8," + encodeURIComponent(props.project.projectSVG.svg)} width="350" height="350"></img></Link>}
+                        {props.project.projectSVG == null && <Link href={editLink}><img src="favicon.ico" width="350" height="350"></img></Link>}
+                        <Card.Footer className="card-footer text-muted bg-transparent px-0">
                             {props.project.projectSVG != null && <DownloadProject text="Download" variant="success" svg={props.project.projectSVG.svg} fileName={props.project.title}/>}
+                            <CreateProject text="Copy" title={props.project.title + " (copy)"} projectJSON={props.project.projectJSON} projectSVG={props.project.projectSVG}/>
                             <ShareProject id={props.project.id}/>
                             <Button variant="danger" onClick={confirmDeleteShow}>Delete</Button>
                         </Card.Footer>

@@ -3,7 +3,7 @@ import { Row, Col, Button } from 'react-bootstrap';
 import { EditShareModalContext } from './ShareProject';
 
 export default function ShareListEntry(props){
-    const {setEditShow} = useContext(EditShareModalContext);
+    const {setShow} = useContext(EditShareModalContext);
 
     function editShareListEntry(edit, id){
         //update on frontend
@@ -20,7 +20,7 @@ export default function ShareListEntry(props){
                 edit: edit,
             }),
         });
-        setEditShow(false);
+        setShow(false);
     }
 
     function deleteShareListEntry(){
@@ -35,13 +35,13 @@ export default function ShareListEntry(props){
                 id: props.entry.id,
             }),
         });
-        setEditShow(false);
+        setShow(false);
     }
 
     return (
         <>
             <Row>
-                <Col md="auto">
+                <Col md={6}>
                     <Button variant="secondary">{props.entry.email}</Button>
                 </Col>
                 <Col md="auto">
