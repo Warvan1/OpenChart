@@ -18,6 +18,8 @@ export default function ProjectViewPage({user}) {
     const [reload, setReload] = useState(false);
     //used to make the projectEditor react component reload
     const [seed, setSeed] = useState(1);
+    //used to keep track of if we just created a new node for the explicit use in handling ctrl z
+    const [newNode, setNewNode] = useState(false);
 
     //used to keep track of the timestamp of the last save
     const [saveTime, setSaveTime] = useState(Date.now());
@@ -79,7 +81,7 @@ export default function ProjectViewPage({user}) {
                     <meta name='keywords' content='chart, online chart, flow chart, online flow chart' />
                 </Head>
                 <MainNavbar projectView={true} title={projectData.title}/>
-                <ProjectDataContext.Provider value = {{projectData, setProjectData, reload, setReload, saveTime, setSaveTime, styles, setStyles}}>
+                <ProjectDataContext.Provider value = {{projectData, setProjectData, reload, setReload, saveTime, setSaveTime, styles, setStyles, newNode, setNewNode}}>
                     {authorized && <ProjectEditor id={id} key={seed}/>}
                     {!authorized && <h1>Access Denied/ Does Not Exist</h1>}
                 </ProjectDataContext.Provider>

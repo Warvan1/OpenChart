@@ -2,7 +2,7 @@ import React, {useState, useEffect, useRef, useContext, createContext } from 're
 import { useUser } from '@auth0/nextjs-auth0/client';
 import { Button, Col, Container, InputGroup, Row } from 'react-bootstrap';
 import paper from "paper";
-import { Key, Point, Segment } from 'paper/dist/paper-core';
+import { Key, Point, Segment, view } from 'paper/dist/paper-core';
 import { ProjectDataContext } from '../pages/project-view/[id]';
 import StyleEditor from './StyleEditor';
 import DownloadProject from './DownloadProject';
@@ -13,7 +13,7 @@ export default function ProjectEditor(props){
     const {user, error, isLoading } = useUser();
     const canvasRef = useRef(null);
     //retrieve the project Data hooks and the reload hooks from the index.js page
-    const {projectData, setProjectData, reload, setReload, saveTime, setSaveTime, styles, setStyles} = useContext(ProjectDataContext);
+    const {projectData, setProjectData, reload, setReload, saveTime, setSaveTime, styles, setStyles, newNode, setNewNode} = useContext(ProjectDataContext);
     //used to store the currient pathObjects from paper project
     const [pathObjectsReact, setPathObjectsReact] = useState([]);
     //used to store the render order of the path objects so that when we save to database that isnt lost
@@ -65,6 +65,70 @@ export default function ProjectEditor(props){
             strokeColor: [0,0,0],
             strokeWidth: 10,
         });
+
+        //handle undo commands
+        var actionList = []
+
+        //handle new node creation for undo
+        if(newNode){
+            updateUndoData("create-node", {});
+        }
+
+        function updateUndoData(type, updateData){
+            var undoData = {
+                type: "none",
+                metaData: {},
+            }
+            if(type == "styleUpdate-node"){
+                var metaData = {
+                    focused: focused,
+                    strokeColor: pathObjects[focused].object.strokeColor,
+                    strokeWidth: pathObjects[focused].object.strokeWidth,
+                    fillColor: pathObjects[focused].object.fillColor,
+                    hasText: false,
+                    text: {},
+                }
+
+                if(pathObjects[focused].type.startsWith("text-")){
+                    metaData.hasText = true;
+                    metaData.text.fillColor = pathObjects[focused].textObject.fillColor;
+                    metaData.text.fontSize = pathObjects[focused].textObject.fontSize;
+                }
+                undoData.type = type;
+                undoData.metaData = metaData;
+            }
+            if(type == "styleUpdate-line"){
+                lineObjects.forEach((data) => {
+                    if(data.index == updateData){
+                        undoData.type = type;
+                        undoData.metaData = {
+                            index: updateData,
+                            strokeColor: data.line.style.strokeColor,
+                            strokeWidth: data.line.style.strokeWidth,
+                        }
+                    }
+                })
+            }
+            if(type == "delete-node"){
+                undoData.type = type;
+                undoData.metaData = updateData;
+            }
+            if(type == "delete-line"){
+                undoData.type = type;
+                undoData.metaData = updateData;
+            }
+            if(type == "create-node"){
+                undoData.type = type;
+                undoData.metaData = {};
+            }
+            if(type == "create-line"){
+                undoData.type = type;
+                undoData.metaData = updateData;
+            }
+
+            //add action to list
+            actionList.push(undoData);
+        }
 
         function createArrow(line){
             var point1 = line.segments[line.segments.length-2].point;
@@ -133,6 +197,9 @@ export default function ProjectEditor(props){
 
         function updateStyles(){
             if(focused != null){
+                //store the old styles into our undo object so that we can undo
+                updateUndoData("styleUpdate-node", {});
+
                 pathObjects[focused].object.strokeColor = styles.pathData.strokeColor;
                 pathObjects[focused].object.strokeWidth = styles.pathData.strokeWidth;
                 pathObjects[focused].object.fillColor = styles.pathData.fillColor;
@@ -142,6 +209,18 @@ export default function ProjectEditor(props){
                     pathObjects[focused].textObject.fontSize = styles.textData.fontSize;
                 }
             }
+        }
+
+        function updateLineStyles(data){
+            //keep track of the old styles in the undoData object
+            updateUndoData("styleUpdate-line", data.index);
+
+            data.line.style.strokeWidth = styles.lineData.strokeWidth;
+            data.arrow.remove();
+            data.arrow = createArrow(data.line);
+            data.line.style.strokeColor = styles.lineData.strokeColor;
+            data.arrow.style.fillColor = styles.lineData.strokeColor;
+            data.arrow.style.strokeColor = styles.lineData.strokeColor;
         }
 
         //focusHighlighting objects
@@ -477,12 +556,7 @@ export default function ProjectEditor(props){
 
         function lineObjectDoubleClick(event, data){
             if(lineFocused != null){
-                data.line.style.strokeWidth = styles.lineData.strokeWidth;
-                data.arrow.remove();
-                data.arrow = createArrow(data.line);
-                data.line.style.strokeColor = styles.lineData.strokeColor;
-                data.arrow.style.fillColor = styles.lineData.strokeColor;
-                data.arrow.style.strokeColor = styles.lineData.strokeColor;
+                updateLineStyles(data);
             }
         }
 
@@ -618,6 +692,9 @@ export default function ProjectEditor(props){
                         //remove the old object from view and mark it for deletion
                         line.type = "delete";
                         line.line.remove();
+
+                        //create a create-line undoData object
+                        updateUndoData("create-line", newLine.index);
 
                         //add the line to pathObjects[focused] connected lines
                         pathObjects[focused].linesConnected.push({index: lineBeingMade, side: "end", handle: handle});
@@ -1071,6 +1148,13 @@ export default function ProjectEditor(props){
                 if(event.key == "backspace" && insideObject){
                     //handle pathObject deletion
                     if(pathObjects[focused] != undefined){
+                        //update undoObject
+                        var metaData = {
+                            type: pathObjects[focused].type,
+                            index: focused,
+                            linesDeleted: []
+                        }
+
                         pathObjects[focused].object.remove();
                         if(pathObjects[focused].type.startsWith("text-")){
                             pathObjects[focused].textObject.remove();
@@ -1079,6 +1163,9 @@ export default function ProjectEditor(props){
                         pathObjects[focused].linesConnected.forEach((objectLine) => {
                             lineObjects.forEach((line) => {
                                 if(objectLine.index == line.index){
+                                    if(line.type == "deleted"){ //used to skip lines that are already deleted in a previous action if we resore this object
+                                        metaData.linesDeleted.push(line.index);
+                                    }
                                     line.line.remove();
                                     if(line.arrow != null){
                                         line.arrow.remove();
@@ -1089,11 +1176,18 @@ export default function ProjectEditor(props){
                         })
                         pathObjects[focused].type = "deleted";
                         focused = null;
+                        updateUndoData("delete-node", metaData)
                     }
                     //handle lineObject deletion
                     if(lineFocused != null){
                         lineObjects.forEach((line) => {
                             if(line.index == lineFocused){
+                                //update undoObject
+                                updateUndoData("delete-line", {
+                                    type: line.type,
+                                    index: lineFocused,
+                                });
+
                                 line.line.remove();
                                 if(line.arrow != null){
                                     line.arrow.remove();
@@ -1107,6 +1201,14 @@ export default function ProjectEditor(props){
                 }
                 if(event.key == "u" && insideObject && focused != null){
                     updateStyles();
+                }
+                if(event.key == "u" && insideObject && lineFocused != null){
+                    //keep track of old styles in the undoData object
+                    lineObjects.forEach((data) => {
+                        if(data.index == lineFocused){
+                            updateLineStyles(data);
+                        }
+                    })
                 }
                 if((event.key == "c" && Key.modifiers.control) || (event.key == "c" && Key.modifiers.command)){
                     if(focused != null){
@@ -1138,6 +1240,125 @@ export default function ProjectEditor(props){
                     setRenderOrderReact(renderOrder);
                     //handle event listeners
                     pathObjectEvents(pathObjects[object.index]);
+                }
+                if((event.key == "z" && Key.modifiers.control) || (event.key == "z" && Key.modifiers.command)){
+                    var undoData = {type: "empty"}
+                    if(actionList.length != 0){
+                        undoData = actionList[actionList.length -1];
+                    }
+                    if(undoData.type == "styleUpdate-node"){
+                        var f = undoData.metaData.focused;
+                        pathObjects[f].object.strokeColor = undoData.metaData.strokeColor;
+                        pathObjects[f].object.strokeWidth = undoData.metaData.strokeWidth;
+                        pathObjects[f].object.fillColor = undoData.metaData.fillColor;
+                        if(undoData.metaData.hasText){
+                            pathObjects[f].textObject.fillColor = undoData.metaData.text.fillColor;
+                            pathObjects[f].textObject.fontSize = undoData.metaData.text.fontSize;
+                        }
+                    }
+                    if(undoData.type == "styleUpdate-line"){
+                        lineObjects.forEach((data) => {
+                            if(data.index == undoData.metaData.index){
+                                data.line.style.strokeWidth = undoData.metaData.strokeWidth;
+                                data.arrow.remove();
+                                data.arrow = createArrow(data.line);
+                                data.line.style.strokeColor = undoData.metaData.strokeColor;
+                                data.arrow.style.fillColor = undoData.metaData.strokeColor;
+                                data.arrow.style.strokeColor = undoData.metaData.strokeColor;
+                            }
+                        })
+                    }
+                    if(undoData.type == "delete-node"){
+                        var i = undoData.metaData.index;
+                        pathObjects[i].type = undoData.metaData.type;
+                        paper.project.activeLayer.addChild(pathObjects[i].object);
+                        if(pathObjects[i].type.startsWith("text-")){
+                            paper.project.activeLayer.addChild(pathObjects[i].textObject);
+                        }
+                        //read all lines that were connected to it.
+                        var objectsToUpdate = [];
+                        pathObjects[i].linesConnected.forEach((objectLine) => {
+                            lineObjects.forEach((line) => {
+                                if(objectLine.index == line.index){
+                                    var skip = false;
+                                    undoData.metaData.linesDeleted.forEach((index) => { //used to handle lines that are deleted in a different action
+                                        if(index == line.index){
+                                            skip = true;
+                                        }
+                                    });
+                                    if(!skip){
+                                        paper.project.activeLayer.addChild(line.line);
+                                        if(line.arrow != null){
+                                            paper.project.activeLayer.addChild(line.arrow);
+                                        }
+                                        line.type = "normal";
+                                        objectsToUpdate.push(line.startObjectIndex);
+                                        objectsToUpdate.push(line.endObjectIndex);
+                                    }
+                                }
+                            })
+                        });
+                        //make sure we update the line ends for any redrawn lines
+                        objectsToUpdate.filter((value, index, self) => {
+                            return self.indexOf(value) === index;
+                        }).forEach((index) => {
+                            updateLineEnds(index);
+                        })
+                    }
+                    if(undoData.type == "delete-line"){
+                        lineObjects.forEach((data) => {
+                            if(data.index == undoData.metaData.index){
+                                data.type = undoData.metaData.type;
+                                paper.project.activeLayer.addChild(data.line);
+                                if(data.arrow != null){
+                                    paper.project.activeLayer.addChild(data.arrow);
+                                }
+                                //make sure we update the line ends
+                                updateLineEnds(data.startObjectIndex);
+                                updateLineEnds(data.endObjectIndex);
+                            }
+                        })
+                    }
+                    if(undoData.type == "create-node"){
+                        var i = pathObjects.length -1;
+                        pathObjects[i].object.remove();
+                        if(pathObjects[i].type.startsWith("text-")){
+                            pathObjects[i].textObject.remove();
+                        }
+                        //remove all lines connected to it
+                        pathObjects[i].linesConnected.forEach((objectLine) => {
+                            lineObjects.forEach((line) => {
+                                if(objectLine.index == line.index){
+                                    line.line.remove();
+                                    if(line.arrow != null){
+                                        line.arrow.remove();
+                                    }
+                                    line.type = "deleted";
+                                }
+                            })
+                        })
+                        pathObjects[i].type = "deleted";
+                        if(focused == i){
+                            focused =  null;
+                        }
+                    }
+                    if(undoData.type == "create-line"){
+                        lineObjects.forEach((line) => {
+                            if(line.index == undoData.metaData){
+                                line.line.remove();
+                                if(line.arrow != null){
+                                    line.arrow.remove();
+                                }
+                                line.type = "deleted";
+                                //make sure to remove highlighting
+                                clearLineHighlight();
+                            }
+                        })
+                    }
+                    //remove last entry from actionList
+                    if(undoData.type != "empty"){
+                        actionList = actionList.slice(0,-1);
+                    }
                 }
             }
             
@@ -1443,6 +1664,8 @@ export default function ProjectEditor(props){
         tempProjectData.projectJSON = tempProjectJSON;
         //update the projectData react object
         setProjectData(tempProjectData);
+        //setNewNode to true for ctrl z system
+        setNewNode(true);
         //tell the index.js page to reload the component with the new data
         setReload(!reload);
     }
