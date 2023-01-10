@@ -11,6 +11,8 @@ export default function MainNavbar(props) {
         <Nav className="mr-auto">
           {props.home && <Nav.Link href="/" active style={{backgroundColor: "#ff9100", color: "#000000"}}>Home</Nav.Link>}
           {!props.home && <Nav.Link href="/" style={{color: "#ffffff"}}>Home</Nav.Link>}
+          {props.docs && <Nav.Link href="/docs" active style={{backgroundColor: "#ff9100", color: "#000000"}}>Documentation</Nav.Link>}
+          {!props.docs && <Nav.Link href="/docs" style={{color: "#ffffff"}}>Documentation</Nav.Link>}
           {props.projects && <Nav.Link href="/projects" active style={{backgroundColor: "#ff9100", color: "#000000"}}>Projects</Nav.Link>}
           {!props.projects && <Nav.Link href="/projects" style={{color: "#ffffff"}}>Projects</Nav.Link>}
           <LoggedIn aClassName="nav-link" aColor="#ffffff"/>

@@ -1,8 +1,10 @@
 import React, {useState, useEffect, useRef, useContext, createContext } from 'react';
+import Dropzone from 'react-dropzone';
 import { useUser } from '@auth0/nextjs-auth0/client';
-import { Button, Col, Container, InputGroup, Row } from 'react-bootstrap';
+import { Button, Col, Container, Form, Modal, Row } from 'react-bootstrap';
 import paper from "paper";
-import { Key, Point, Segment, view } from 'paper/dist/paper-core';
+import { Key, Point, Segment } from 'paper/dist/paper-core';
+import Link from 'next/link';
 import { ProjectDataContext } from '../pages/project-view/[id]';
 import StyleEditor from './StyleEditor';
 import DownloadProject from './DownloadProject';
@@ -28,6 +30,12 @@ export default function ProjectEditor(props){
     const [saveTimeUpdate, setSaveTimeUpdate] = useState({minutes: 0, seconds: 0});
     //used to store the present view link
     const [viewLink, setViewLink] = useState(null);
+    //used to show the fileUpload modal
+    const [showUploadFile, setShowUploadFile] = useState(false);
+    //used to store uploaded file data
+    const [uploadedFileData, setUploadedFileData] = useState(null);
+    //used to display wrong file type error message
+    const [uploadedFileWrongType, setUploadedFileWrongType] = useState(false);
 
     //used to create a paper project to draw on the canvas
     function updateScreen(){
@@ -199,7 +207,7 @@ export default function ProjectEditor(props){
             if(focused != null){
                 //store the old styles into our undo object so that we can undo
                 updateUndoData("styleUpdate-node", {});
-
+                
                 pathObjects[focused].object.strokeColor = styles.pathData.strokeColor;
                 pathObjects[focused].object.strokeWidth = styles.pathData.strokeWidth;
                 pathObjects[focused].object.fillColor = styles.pathData.fillColor;
@@ -340,12 +348,26 @@ export default function ProjectEditor(props){
                         fillColor: object.data.fillColor,
                     })
                 }
+                if(object.type =="custom-svg"){
+                    pathObject = paper.project.importSVG(object.svg);
+                    pathObject.bounds.topLeft = object.data.point;
+                    pathObject.bounds.size.width = object.data.size[0];
+                    pathObject.bounds.size.height = object.data.size[1];
+
+                    //used to update styles for the svg if applicable
+                    if(object.data.fillColor != null){
+                        pathObject.style.strokeColor = object.data.strokeColor;
+                        pathObject.style.strokeWidth = object.data.strokeWidth;
+                        pathObject.style.fillColor = object.data.fillColor;
+                    }
+                }
 
                 pathObjects.push({
                     object: pathObject, 
                     type: object.type,
                     index: i,
                     linesConnected: object.linesConnected,
+                    svg: object.svg,
                 });
             }
             
@@ -1247,13 +1269,15 @@ export default function ProjectEditor(props){
                         undoData = actionList[actionList.length -1];
                     }
                     if(undoData.type == "styleUpdate-node"){
-                        var f = undoData.metaData.focused;
-                        pathObjects[f].object.strokeColor = undoData.metaData.strokeColor;
-                        pathObjects[f].object.strokeWidth = undoData.metaData.strokeWidth;
-                        pathObjects[f].object.fillColor = undoData.metaData.fillColor;
-                        if(undoData.metaData.hasText){
-                            pathObjects[f].textObject.fillColor = undoData.metaData.text.fillColor;
-                            pathObjects[f].textObject.fontSize = undoData.metaData.text.fontSize;
+                        if(undoData.metaData.fillColor != null){
+                            var f = undoData.metaData.focused;
+                            pathObjects[f].object.strokeColor = undoData.metaData.strokeColor;
+                            pathObjects[f].object.strokeWidth = undoData.metaData.strokeWidth;
+                            pathObjects[f].object.fillColor = undoData.metaData.fillColor;
+                            if(undoData.metaData.hasText){
+                                pathObjects[f].textObject.fillColor = undoData.metaData.text.fillColor;
+                                pathObjects[f].textObject.fontSize = undoData.metaData.text.fontSize;
+                            }
                         }
                     }
                     if(undoData.type == "styleUpdate-line"){
@@ -1544,12 +1568,36 @@ export default function ProjectEditor(props){
             var height = data.object.bounds.size.height;
             var x = data.object.bounds.topLeft.x;
             var y = data.object.bounds.topLeft.y;
-            dataObject.data = {
-                size: [width, height],
-                point: [x , y],
-                strokeColor: data.object.style.strokeColor.components,
-                strokeWidth: data.object.strokeWidth,
-                fillColor: data.object.style.fillColor.components,
+            if(data.type.endsWith("custom-svg")){
+                if(data.object.style.fillColor != null){
+                    dataObject.data = {
+                        size: [width, height],
+                        point: [x , y],
+                        strokeColor: data.object.style.strokeColor.components,
+                        strokeWidth: data.object.strokeWidth,
+                        fillColor: data.object.style.fillColor.components,
+                    }
+                }
+                else{
+                    dataObject.data = {
+                        size: [width, height],
+                        point: [x , y],
+                        strokeColor: null,
+                        strokeWidth: null,
+                        fillColor: null,
+                    }
+                }
+                dataObject.svg = data.svg;
+                dataObject.type = "custom-svg";
+            }
+            else if(data.type != "deleted"){
+                dataObject.data = {
+                    size: [width, height],
+                    point: [x , y],
+                    strokeColor: data.object.style.strokeColor.components,
+                    strokeWidth: data.object.strokeWidth,
+                    fillColor: data.object.style.fillColor.components,
+                }
             }
             dataObject.linesConnected = data.linesConnected;
             if(data.type.startsWith("text-")){
@@ -1670,6 +1718,65 @@ export default function ProjectEditor(props){
         setReload(!reload);
     }
 
+    function addSVGNode(){
+        //retrieve the currient backend projectData
+        var tempProjectData = projectData;
+        //compile the currient frontend projectData into a backend projectJSON object
+        var tempProjectJSON = compileToProjectData();
+
+        //add a new data object to projectJSON object
+        tempProjectJSON.objects.push({
+            data: {
+                point: styles.pathData.point,
+                size: styles.pathData.size,
+                strokeColor: null,
+                strokeWidth: null,
+                fillColor: null,
+            },
+            svg: uploadedFileData,
+            type: "custom-svg",
+            textInputOffset: null,
+            linesConnected: [],
+        });
+
+        //set the projectJSON in the backend projectJSON to the new projectJSON with the new object
+        tempProjectData.projectJSON = tempProjectJSON;
+        //update the projectData react object
+        setProjectData(tempProjectData);
+        //setNewNode to true for ctrl z system
+        setNewNode(true);
+        //tell the index.js page to reload the component with the new data
+        setReload(!reload);
+    }
+
+    //used to facilitate opening and closing the custom svg modal
+    function handleClose(){
+        setShowUploadFile(false);
+    }
+    function handleOpen(){
+        setShowUploadFile(true);
+    }
+
+    //used to read the data from a given file object
+    function readFile(files){
+        var file = files[0];
+        if(file.type == "image/svg+xml"){
+            const reader = new FileReader();
+
+            reader.onabort = () => console.log('file reading was aborted');
+            reader.onerror = () => console.log('file reading has failed');
+            reader.onload = () => {
+                setUploadedFileData(reader.result);
+                setUploadedFileWrongType(false);
+            }
+            //we use readAsText since we are reading svg files
+            reader.readAsText(file);
+        }
+        else{
+            setUploadedFileWrongType(true);
+        }
+    }
+
     //creates a loop that updates the saveTimeUpdate every second
     useEffect(() => {
         const timerId = setTimeout(() => {
@@ -1689,7 +1796,7 @@ export default function ProjectEditor(props){
     if (error) return <div>{error.message}</div>;
 
     return (
-        <div>
+        <>
             <br />
             <Container fluid>
                 <Row>
@@ -1709,10 +1816,13 @@ export default function ProjectEditor(props){
                                 <Button variant="primary" onClick={addNewNode} >Add New Node</Button>
                             </Col>
                             <Col md="auto">
-                                <DownloadProject text="Download Project" variant="info" svg={svgFile} fileName={projectData.title}/>
+                                <Button variant="warning" onClick={handleOpen} >Import Custom Node</Button>
                             </Col>
                             <Col md="auto">
-                                <Button variant="success" href={viewLink} >Present View</Button>
+                                <DownloadProject text="Download Project" variant="success" svg={svgFile} fileName={projectData.title}/>
+                            </Col>
+                            <Col md="auto">
+                                <Button variant="info" href={viewLink} >Present View</Button>
                             </Col>
                             <Col md="auto">
                                 <Button variant="dark" onClick={saveProject} >Save</Button>
@@ -1726,6 +1836,35 @@ export default function ProjectEditor(props){
                     </Col>
                 </Row>
             </Container>
-        </div>
+
+            <Modal show={showUploadFile} onHide={handleClose}>
+                <Modal.Header closeButton>
+                    <Modal.Title>Upload SVG File</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <Dropzone onDrop={acceptedFiles => readFile(acceptedFiles)}>
+                        {({getRootProps, getInputProps}) => (
+                            <section>
+                                <div {...getRootProps()}>
+                                    <input {...getInputProps()} />
+                                    <Button variant="warning">Drag 'n' drop, or click to select an .svg File</Button>
+                                    {uploadedFileData != null && <img src={"data:image/svg+xml;utf8," + encodeURIComponent(uploadedFileData)} width="350" height="350"></img>}
+                                    {uploadedFileWrongType && <p>Wrong File Type: Please upload a .svg file</p>}
+                                </div>
+                            </section>
+                        )}
+                    </Dropzone>
+                    <p>To access a library of open licensed SVG vector images visit <Link href="https://www.svgrepo.com/">svgrepo.com</Link>.</p>
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={handleClose}>
+                        Exit
+                    </Button>
+                    {uploadedFileData != null && <Button variant="info" onClick={addSVGNode}>
+                       Add Custom Svg Node
+                    </Button>}
+                </Modal.Footer>
+            </Modal>
+        </>
     );
 }
