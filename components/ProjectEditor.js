@@ -348,7 +348,7 @@ export default function ProjectEditor(props){
                         fillColor: object.data.fillColor,
                     })
                 }
-                if(object.type =="custom-svg"){
+                if(object.type == "custom-svg"){
                     pathObject = paper.project.importSVG(object.svg);
                     pathObject.bounds.topLeft = object.data.point;
                     pathObject.bounds.size.width = object.data.size[0];
@@ -1251,7 +1251,10 @@ export default function ProjectEditor(props){
                         object = {index: pathObjects.length, type: pathObjects[pathCopyIndex].type, object: pathObject, textObject: textObject, textInputOffset: 0, linesConnected: []}
                     }
                     else{
-                        object = {index: pathObjects.length, type: pathObjects[pathCopyIndex].type, object: pathObject}
+                        object = {index: pathObjects.length, type: pathObjects[pathCopyIndex].type, object: pathObject, linesConnected: [], svg: null}
+                        if(object.type == "custom-svg"){
+                            object.svg = pathObjects[pathCopyIndex].svg;
+                        }
                     }
                     //create new pathObject within pathObjects
                     pathObjects.push(object);
