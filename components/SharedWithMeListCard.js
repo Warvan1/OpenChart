@@ -24,7 +24,6 @@ export default function SharedWithMeListCard(props){
         if(props.project.title == titleInputRef.current.value){
             setShow(false);
             //remove from shared table
-            console.log(props.project);
             fetch(`/api/delete-share-list-entry`, {
                 method: 'POST',
                 headers: {

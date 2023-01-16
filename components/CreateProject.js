@@ -20,7 +20,6 @@ export default function CreateProject(props){
 
     function handleCreate(){
         setShow(false);
-        console.log(props.projectJSON)
 
         fetch(`/api/create-project`, {
             method: 'POST',
